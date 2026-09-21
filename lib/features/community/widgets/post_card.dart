@@ -1,6 +1,7 @@
 // lib/features/community/widgets/post_card.dart
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../l10n/l10n.dart';
 import '../models/post.dart';
 
 class PostCard extends StatelessWidget {
@@ -18,6 +19,7 @@ class PostCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final l10n = context.l10n;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -90,7 +92,9 @@ class PostCard extends StatelessWidget {
                     padding: EdgeInsets.zero,
                     minimumSize: const Size(50, 30),
                   ),
-                  child: Text(post.isFollowed ? '已关注' : '+ 关注'),
+                  child: Text(
+                    post.isFollowed ? l10n.followingButton : l10n.followButton,
+                  ),
                 ),
               ],
             ),

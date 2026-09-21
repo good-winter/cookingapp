@@ -1,6 +1,72 @@
 {
   "@@locale": "en",
 
+  "appTitle": "AI Cooking",
+
+  "navCooking": "Cooking",
+  "navCommunity": "Community",
+  "navStatistics": "Stats",
+
+  "greetingMorning": "Good morning",
+  "greetingNoon": "Good afternoon",
+  "greetingEvening": "Good evening",
+
+  "cookingSubtitle": "What are we cooking today?",
+  "cookingCameraTitle": "Snap to identify ingredients",
+  "cookingCameraSubtitle": "Detects ingredients and freshness automatically",
+  "cookingRecommendTitle": "🔥 Recommended",
+  "cookingRecommendAll": "(General)",
+  "cookingRecommendFor": "(For: {crowds})",
+  "cookingNoResults": "No recipes match your preferences.",
+
+  "prefsTitle": "Diet preferences",
+  "prefsSectionDiet": "1. Diet",
+  "prefsSectionCrowd": "2. I am (group)",
+  "prefsSectionAvoid": "3. I avoid (allergies)",
+  "prefsSave": "Save and update",
+
+  "dietNormal": "Standard",
+  "dietVegetarian": "Vegetarian",
+  "crowdPregnant": "Pregnant",
+  "crowdStudent": "Student",
+  "crowdFitness": "Fitness",
+  "crowdElderly": "Elderly",
+  "crowdAthlete": "Athlete",
+  "avoidPork": "Pork",
+  "avoidBeef": "Beef",
+  "avoidSeafood": "Seafood",
+  "avoidCilantro": "Cilantro",
+  "avoidSpicy": "Spicy",
+
+  "followButton": "+ Follow",
+  "followingButton": "Following",
+
+  "feedRecommend": "For you",
+  "feedFollowing": "Following",
+  "feedNearby": "Local",
+  "publishSuccess": "Posted!",
+
+  "createPostTitle": "New post",
+  "createPostPublish": "Post",
+  "createPostHint": "Share your cooking tips, results, or questions...",
+  "createPostEmpty": "Write something first~",
+  "createPostAddImage": "Add photos",
+  "createPostImagePickerWip": "Photo picker is not ready yet (will use image_picker)",
+  "createPostAddTopic": "Add topics",
+  "createPostFooter": "Be kind, share the good food ✨",
+
+  "statsDatePickerWip": "Date picker is not ready yet...",
+  "statsMonth": "September 2026",
+  "statsTodayIntake": "Today's intake",
+  "statsWeekAverage": "Weekly average",
+  "statsCalorieTrend": "📈 Calories, last two weeks",
+  "statsNutrition": "🍩 Nutrition balance",
+  "statsCarbs": "Carbs",
+  "statsProtein": "Protein",
+  "statsFat": "Fat",
+  "statsHistory": "📋 History",
+  "statsRetention": "Retention: forever (tap to change)",
+
   "settingsTitle": "Settings",
 
   "signaturePlaceholder": "Tap to set a status",

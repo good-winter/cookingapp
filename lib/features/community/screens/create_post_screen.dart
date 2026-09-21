@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../l10n/l10n.dart';
 
 class CreatePostScreen extends StatefulWidget {
   const CreatePostScreen({super.key});
@@ -26,7 +27,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   void _submitPost() {
     if (_textController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('写点什么再发布吧~')),
+        SnackBar(content: Text(context.l10n.createPostEmpty)),
       );
       return;
     }
@@ -41,6 +42,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final l10n = context.l10n;
 
     return Scaffold(
       // 背景色交给 scaffoldBackgroundColor，不再写死浅灰
@@ -50,11 +52,11 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
         leading: TextButton(
           onPressed: () => Navigator.pop(context),
           child: Text(
-            '取消',
+            l10n.actionCancel,
             style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 16),
           ),
         ),
-        title: Text('发布动态', style: TextStyle(color: scheme.onSurface, fontSize: 18, fontWeight: FontWeight.bold)),
+        title: Text(l10n.createPostTitle, style: TextStyle(color: scheme.onSurface, fontSize: 18, fontWeight: FontWeight.bold)),
         centerTitle: true,
         actions: [
           Padding(
@@ -67,7 +69,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                 elevation: 0,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
               ),
-              child: const Text('发布'),
+              child: Text(l10n.createPostPublish),
             ),
           ),
         ],
@@ -88,8 +90,8 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                 controller: _textController,
                 maxLines: 6,
                 maxLength: 500,
-                decoration: const InputDecoration(
-                  hintText: '分享你的做饭心得、成果或求助...',
+                decoration: InputDecoration(
+                  hintText: l10n.createPostHint,
                   border: InputBorder.none,
                   counterText: '', // 隐藏右下角字数统计
                 ),
@@ -99,7 +101,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
             const SizedBox(height: 16),
 
             // 2. 图片选择区 (模拟)
-            const Text('添加图片', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+            Text(l10n.createPostAddImage, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
             const SizedBox(height: 12),
             GridView.builder(
               shrinkWrap: true,
@@ -116,7 +118,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                   return GestureDetector(
                     onTap: () {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('图片选择器开发中（后续可接入 image_picker）')),
+                        SnackBar(content: Text(l10n.createPostImagePickerWip)),
                       );
                     },
                     child: Container(
@@ -142,7 +144,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
             const SizedBox(height: 24),
 
             // 3. 话题标签选择
-            const Text('添加话题', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+            Text(l10n.createPostAddTopic, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
             const SizedBox(height: 12),
             Wrap(
               spacing: 10,
@@ -175,7 +177,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
             // 4. 提示文字
             Center(
               child: Text(
-                '友善发言，分享美好食光 ✨',
+                l10n.createPostFooter,
                 style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12),
               ),
             ),

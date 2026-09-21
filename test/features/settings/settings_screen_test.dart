@@ -67,7 +67,7 @@ void main() {
   });
 
   group('语言', () {
-    testWidgets('切到 English 后设置页变英文，但底部导航仍是中文', (tester) async {
+    testWidgets('切到 English 后全局生效：设置页与底部导航都变英文', (tester) async {
       await pumpApp(tester);
       await _openSettings(tester);
 
@@ -78,8 +78,6 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(currentLocale(tester)?.languageCode, 'en');
-      // 子页标题已切换
-      expect(find.text('Language'), findsOneWidget);
 
       await goBack(tester);
 
@@ -87,11 +85,35 @@ void main() {
       expect(find.text('Data'), findsOneWidget);
       expect(find.text('Voice'), findsOneWidget);
 
-      // 刻意只翻设置页：底部导航与其余页面仍是中文
-      expect(find.text('烹饪'), findsOneWidget);
-      expect(find.text('社区'), findsOneWidget);
-      expect(find.text('统计'), findsOneWidget);
-      expect(find.text('Cooking'), findsNothing);
+      // 底部导航同样跟着切 —— 语言是全局生效的
+      expect(find.text('Cooking'), findsOneWidget);
+      expect(find.text('Community'), findsOneWidget);
+      expect(find.text('Stats'), findsOneWidget);
+      // 「Settings」会出现两次：底部导航 + 页面标题
+      expect(find.text('Settings'), findsNWidgets(2));
+
+      // 中文标签应当全部消失
+      expect(find.text('烹饪'), findsNothing);
+      expect(find.text('社区'), findsNothing);
+      expect(find.text('统计'), findsNothing);
+    });
+
+    testWidgets('切到 English 后，烹饪页也变英文', (tester) async {
+      await pumpApp(tester);
+      await _openSettings(tester);
+
+      await tester.tap(find.text('语言'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('English'));
+      await tester.pumpAndSettle();
+      await goBack(tester);
+
+      // 切到烹饪页 —— 页面正文也应该是英文
+      await openTab(tester, Icons.restaurant_menu);
+
+      expect(find.text('Snap to identify ingredients'), findsOneWidget);
+      expect(find.text('What are we cooking today?'), findsOneWidget);
+      expect(find.text('AI 拍照识别食材'), findsNothing);
     });
   });
 
@@ -224,8 +246,9 @@ void main() {
 
       await _openSettings(tester);
 
-      // 设置页是英文，签名也从本地恢复了
-      expect(find.text('Settings'), findsOneWidget);
+      // 设置页是英文（用栏目名断言，避开「Settings」同时出现在底部导航的情况），
+      // 签名也从本地恢复了
+      expect(find.text('Data'), findsOneWidget);
       expect(find.text('好好吃饭'), findsOneWidget);
       expect(find.text('点击设置个性签名'), findsNothing);
     });

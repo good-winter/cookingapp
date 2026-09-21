@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../l10n/l10n.dart';
 
 class StatisticsScreen extends StatefulWidget {
   const StatisticsScreen({super.key});
@@ -32,21 +33,22 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final l10n = context.l10n;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('统计', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: Text(l10n.navStatistics, style: const TextStyle(fontWeight: FontWeight.bold)),
         actions: [
           // 日期选择器入口
           TextButton.icon(
             onPressed: () {
               // TODO: 实现日期范围选择
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('日期选择功能开发中...')),
+                SnackBar(content: Text(l10n.statsDatePickerWip)),
               );
             },
             icon: Icon(Icons.calendar_today, size: 16, color: scheme.onSurfaceVariant),
-            label: Text('2026年9月', style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 14)),
+            label: Text(l10n.statsMonth, style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 14)),
           ),
           const SizedBox(width: 8),
         ],
@@ -59,15 +61,15 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
             // 1. 概览卡片
             Row(
               children: [
-                _buildStatCard('今日摄入', '1800', 'kcal', const Color(0xFFFF7A00)), // 突出今日
+                _buildStatCard(l10n.statsTodayIntake, '1800', 'kcal', const Color(0xFFFF7A00)), // 突出今日
                 const SizedBox(width: 16),
-                _buildStatCard('本周平均', '1950', 'kcal', const Color(0xFF2ECC71)),
+                _buildStatCard(l10n.statsWeekAverage, '1950', 'kcal', const Color(0xFF2ECC71)),
               ],
             ),
             const SizedBox(height: 24),
 
             // 2. 近两周热量趋势 (柱状图)
-            const Text('📈 近两周热量趋势', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            Text(l10n.statsCalorieTrend, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             const SizedBox(height: 16),
             Container(
               height: 200,
@@ -133,7 +135,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
             const SizedBox(height: 24),
 
             // 3. 营养均衡度 (环形图)
-            const Text('🍩 营养均衡度', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            Text(l10n.statsNutrition, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             const SizedBox(height: 16),
             Container(
               height: 220,
@@ -183,11 +185,11 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _buildLegendItem(const Color(0xFFFF7A00), '碳水'),
+                        _buildLegendItem(const Color(0xFFFF7A00), l10n.statsCarbs),
                         const SizedBox(height: 8),
-                        _buildLegendItem(const Color(0xFF2ECC71), '蛋白质'),
+                        _buildLegendItem(const Color(0xFF2ECC71), l10n.statsProtein),
                         const SizedBox(height: 8),
-                        _buildLegendItem(const Color(0xFF3498DB), '脂肪'),
+                        _buildLegendItem(const Color(0xFF3498DB), l10n.statsFat),
                       ],
                     ),
                   ),
@@ -197,7 +199,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
             const SizedBox(height: 24),
 
             // 4. 历史记录
-            const Text('📋 历史记录', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            Text(l10n.statsHistory, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             const SizedBox(height: 12),
             Container(
               decoration: BoxDecoration(
@@ -240,7 +242,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                 },
                 icon: Icon(Icons.info_outline, size: 16, color: scheme.onSurfaceVariant),
                 label: Text(
-                  '数据保存时间: 永久保存 (点击修改)',
+                  l10n.statsRetention,
                   style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12),
                 ),
               ),

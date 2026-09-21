@@ -8,6 +8,7 @@ import '../../features/cooking/screens/cooking_screen.dart';
 import '../../features/community/screens/community_screen.dart';
 import '../../features/statistics/screens/statistics_screen.dart';
 import '../../features/settings/screens/settings_screen.dart';
+import '../../l10n/l10n.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
@@ -47,6 +48,8 @@ class MainScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
+
     // 根据当前路由判断选中的Tab
     final location = GoRouterState.of(context).uri.toString();
     int currentIndex = 0;
@@ -66,11 +69,23 @@ class MainScaffold extends StatelessWidget {
             case 3: context.go('/settings'); break;
           }
         },
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.restaurant_menu), label: '烹饪'),
-          BottomNavigationBarItem(icon: Icon(Icons.people_outline), label: '社区'),
-          BottomNavigationBarItem(icon: Icon(Icons.bar_chart), label: '统计'),
-          BottomNavigationBarItem(icon: Icon(Icons.settings_outlined), label: '设置'),
+        items: [
+          BottomNavigationBarItem(
+            icon: const Icon(Icons.restaurant_menu),
+            label: l10n.navCooking,
+          ),
+          BottomNavigationBarItem(
+            icon: const Icon(Icons.people_outline),
+            label: l10n.navCommunity,
+          ),
+          BottomNavigationBarItem(
+            icon: const Icon(Icons.bar_chart),
+            label: l10n.navStatistics,
+          ),
+          BottomNavigationBarItem(
+            icon: const Icon(Icons.settings_outlined),
+            label: l10n.settingsTitle,
+          ),
         ],
       ),
     );

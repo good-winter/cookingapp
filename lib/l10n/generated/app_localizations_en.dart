@@ -9,6 +9,179 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
+  String get appTitle => 'AI Cooking';
+
+  @override
+  String get navCooking => 'Cooking';
+
+  @override
+  String get navCommunity => 'Community';
+
+  @override
+  String get navStatistics => 'Stats';
+
+  @override
+  String get greetingMorning => 'Good morning';
+
+  @override
+  String get greetingNoon => 'Good afternoon';
+
+  @override
+  String get greetingEvening => 'Good evening';
+
+  @override
+  String get cookingSubtitle => 'What are we cooking today?';
+
+  @override
+  String get cookingCameraTitle => 'Snap to identify ingredients';
+
+  @override
+  String get cookingCameraSubtitle =>
+      'Detects ingredients and freshness automatically';
+
+  @override
+  String get cookingRecommendTitle => '🔥 Recommended';
+
+  @override
+  String get cookingRecommendAll => '(General)';
+
+  @override
+  String cookingRecommendFor(String crowds) {
+    return '(For: $crowds)';
+  }
+
+  @override
+  String get cookingNoResults => 'No recipes match your preferences.';
+
+  @override
+  String get prefsTitle => 'Diet preferences';
+
+  @override
+  String get prefsSectionDiet => '1. Diet';
+
+  @override
+  String get prefsSectionCrowd => '2. I am (group)';
+
+  @override
+  String get prefsSectionAvoid => '3. I avoid (allergies)';
+
+  @override
+  String get prefsSave => 'Save and update';
+
+  @override
+  String get dietNormal => 'Standard';
+
+  @override
+  String get dietVegetarian => 'Vegetarian';
+
+  @override
+  String get crowdPregnant => 'Pregnant';
+
+  @override
+  String get crowdStudent => 'Student';
+
+  @override
+  String get crowdFitness => 'Fitness';
+
+  @override
+  String get crowdElderly => 'Elderly';
+
+  @override
+  String get crowdAthlete => 'Athlete';
+
+  @override
+  String get avoidPork => 'Pork';
+
+  @override
+  String get avoidBeef => 'Beef';
+
+  @override
+  String get avoidSeafood => 'Seafood';
+
+  @override
+  String get avoidCilantro => 'Cilantro';
+
+  @override
+  String get avoidSpicy => 'Spicy';
+
+  @override
+  String get followButton => '+ Follow';
+
+  @override
+  String get followingButton => 'Following';
+
+  @override
+  String get feedRecommend => 'For you';
+
+  @override
+  String get feedFollowing => 'Following';
+
+  @override
+  String get feedNearby => 'Local';
+
+  @override
+  String get publishSuccess => 'Posted!';
+
+  @override
+  String get createPostTitle => 'New post';
+
+  @override
+  String get createPostPublish => 'Post';
+
+  @override
+  String get createPostHint =>
+      'Share your cooking tips, results, or questions...';
+
+  @override
+  String get createPostEmpty => 'Write something first~';
+
+  @override
+  String get createPostAddImage => 'Add photos';
+
+  @override
+  String get createPostImagePickerWip =>
+      'Photo picker is not ready yet (will use image_picker)';
+
+  @override
+  String get createPostAddTopic => 'Add topics';
+
+  @override
+  String get createPostFooter => 'Be kind, share the good food ✨';
+
+  @override
+  String get statsDatePickerWip => 'Date picker is not ready yet...';
+
+  @override
+  String get statsMonth => 'September 2026';
+
+  @override
+  String get statsTodayIntake => 'Today\'s intake';
+
+  @override
+  String get statsWeekAverage => 'Weekly average';
+
+  @override
+  String get statsCalorieTrend => '📈 Calories, last two weeks';
+
+  @override
+  String get statsNutrition => '🍩 Nutrition balance';
+
+  @override
+  String get statsCarbs => 'Carbs';
+
+  @override
+  String get statsProtein => 'Protein';
+
+  @override
+  String get statsFat => 'Fat';
+
+  @override
+  String get statsHistory => '📋 History';
+
+  @override
+  String get statsRetention => 'Retention: forever (tap to change)';
+
+  @override
   String get settingsTitle => 'Settings';
 
   @override

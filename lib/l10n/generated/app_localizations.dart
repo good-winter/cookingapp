@@ -98,7 +98,343 @@ abstract class AppLocalizations {
     Locale('zh')
   ];
 
-  /// 设置页标题，也是底部导航第四个 Tab 的名字（底部导航暂未接入 i18n）
+  /// App 名称，用于系统任务切换器
+  ///
+  /// In zh, this message translates to:
+  /// **'AI 智能做饭'**
+  String get appTitle;
+
+  /// 底部导航第 1 个 Tab
+  ///
+  /// In zh, this message translates to:
+  /// **'烹饪'**
+  String get navCooking;
+
+  /// 底部导航第 2 个 Tab，也是社区页标题
+  ///
+  /// In zh, this message translates to:
+  /// **'社区'**
+  String get navCommunity;
+
+  /// 底部导航第 3 个 Tab，也是统计页标题
+  ///
+  /// In zh, this message translates to:
+  /// **'统计'**
+  String get navStatistics;
+
+  /// 5:00-11:59 的问候语
+  ///
+  /// In zh, this message translates to:
+  /// **'早上好'**
+  String get greetingMorning;
+
+  /// 12:00-17:59 的问候语
+  ///
+  /// In zh, this message translates to:
+  /// **'中午好'**
+  String get greetingNoon;
+
+  /// 18:00-次日 4:59 的问候语
+  ///
+  /// In zh, this message translates to:
+  /// **'晚上好'**
+  String get greetingEvening;
+
+  /// 烹饪页问候语下方的小字
+  ///
+  /// In zh, this message translates to:
+  /// **'今天想做点什么？'**
+  String get cookingSubtitle;
+
+  /// 拍照识别区域的主标题
+  ///
+  /// In zh, this message translates to:
+  /// **'AI 拍照识别食材'**
+  String get cookingCameraTitle;
+
+  /// 拍照识别区域的副标题
+  ///
+  /// In zh, this message translates to:
+  /// **'自动判断荤素与新鲜度，保障饮食安全'**
+  String get cookingCameraSubtitle;
+
+  /// 推荐区标题
+  ///
+  /// In zh, this message translates to:
+  /// **'🔥 为你推荐'**
+  String get cookingRecommendTitle;
+
+  /// 未选人群时的推荐说明
+  ///
+  /// In zh, this message translates to:
+  /// **'(综合推荐)'**
+  String get cookingRecommendAll;
+
+  /// 已选人群时的推荐说明
+  ///
+  /// In zh, this message translates to:
+  /// **'(适配: {crowds})'**
+  String cookingRecommendFor(String crowds);
+
+  /// 筛完没有结果时的空态文案
+  ///
+  /// In zh, this message translates to:
+  /// **'没有找到符合您当前偏好的菜谱。'**
+  String get cookingNoResults;
+
+  /// 饮食偏好弹窗标题
+  ///
+  /// In zh, this message translates to:
+  /// **'设置我的饮食偏好'**
+  String get prefsTitle;
+
+  /// 偏好弹窗第 1 栏
+  ///
+  /// In zh, this message translates to:
+  /// **'1. 饮食习惯'**
+  String get prefsSectionDiet;
+
+  /// 偏好弹窗第 2 栏
+  ///
+  /// In zh, this message translates to:
+  /// **'2. 我属于 (人群)'**
+  String get prefsSectionCrowd;
+
+  /// 偏好弹窗第 3 栏
+  ///
+  /// In zh, this message translates to:
+  /// **'3. 我不吃 (忌口/过敏)'**
+  String get prefsSectionAvoid;
+
+  /// 偏好弹窗保存按钮
+  ///
+  /// In zh, this message translates to:
+  /// **'保存并更新推荐'**
+  String get prefsSave;
+
+  /// 枚举显示名。⚠️ 只改这里不影响存储值与匹配逻辑
+  ///
+  /// In zh, this message translates to:
+  /// **'正常人'**
+  String get dietNormal;
+
+  /// 枚举显示名
+  ///
+  /// In zh, this message translates to:
+  /// **'素食主义'**
+  String get dietVegetarian;
+
+  /// 人群枚举显示名
+  ///
+  /// In zh, this message translates to:
+  /// **'孕妇'**
+  String get crowdPregnant;
+
+  /// 人群枚举显示名
+  ///
+  /// In zh, this message translates to:
+  /// **'学生'**
+  String get crowdStudent;
+
+  /// 人群枚举显示名
+  ///
+  /// In zh, this message translates to:
+  /// **'健身人群'**
+  String get crowdFitness;
+
+  /// 人群枚举显示名
+  ///
+  /// In zh, this message translates to:
+  /// **'老人'**
+  String get crowdElderly;
+
+  /// 人群枚举显示名
+  ///
+  /// In zh, this message translates to:
+  /// **'运动员'**
+  String get crowdAthlete;
+
+  /// 忌口枚举显示名
+  ///
+  /// In zh, this message translates to:
+  /// **'猪肉'**
+  String get avoidPork;
+
+  /// 忌口枚举显示名
+  ///
+  /// In zh, this message translates to:
+  /// **'牛肉'**
+  String get avoidBeef;
+
+  /// 忌口枚举显示名
+  ///
+  /// In zh, this message translates to:
+  /// **'海鲜'**
+  String get avoidSeafood;
+
+  /// 忌口枚举显示名
+  ///
+  /// In zh, this message translates to:
+  /// **'香菜'**
+  String get avoidCilantro;
+
+  /// 忌口枚举显示名
+  ///
+  /// In zh, this message translates to:
+  /// **'辛辣'**
+  String get avoidSpicy;
+
+  /// 帖子卡片的关注按钮
+  ///
+  /// In zh, this message translates to:
+  /// **'+ 关注'**
+  String get followButton;
+
+  /// 已关注状态
+  ///
+  /// In zh, this message translates to:
+  /// **'已关注'**
+  String get followingButton;
+
+  /// 社区第 1 个 Tab
+  ///
+  /// In zh, this message translates to:
+  /// **'推荐'**
+  String get feedRecommend;
+
+  /// 社区第 2 个 Tab
+  ///
+  /// In zh, this message translates to:
+  /// **'关注'**
+  String get feedFollowing;
+
+  /// 社区第 3 个 Tab。契约决策 #5 已砍掉同城，接入接口时一并移除
+  ///
+  /// In zh, this message translates to:
+  /// **'同城'**
+  String get feedNearby;
+
+  /// 发帖成功提示
+  ///
+  /// In zh, this message translates to:
+  /// **'发布成功！'**
+  String get publishSuccess;
+
+  /// 发帖页标题
+  ///
+  /// In zh, this message translates to:
+  /// **'发布动态'**
+  String get createPostTitle;
+
+  /// 发帖按钮
+  ///
+  /// In zh, this message translates to:
+  /// **'发布'**
+  String get createPostPublish;
+
+  /// 发帖输入框占位
+  ///
+  /// In zh, this message translates to:
+  /// **'分享你的做饭心得、成果或求助...'**
+  String get createPostHint;
+
+  /// 内容为空时的提示
+  ///
+  /// In zh, this message translates to:
+  /// **'写点什么再发布吧~'**
+  String get createPostEmpty;
+
+  /// 图片区标题
+  ///
+  /// In zh, this message translates to:
+  /// **'添加图片'**
+  String get createPostAddImage;
+
+  /// 图片选择占位提示
+  ///
+  /// In zh, this message translates to:
+  /// **'图片选择器开发中（后续可接入 image_picker）'**
+  String get createPostImagePickerWip;
+
+  /// 话题区标题
+  ///
+  /// In zh, this message translates to:
+  /// **'添加话题'**
+  String get createPostAddTopic;
+
+  /// 发帖页底部提示
+  ///
+  /// In zh, this message translates to:
+  /// **'友善发言，分享美好食光 ✨'**
+  String get createPostFooter;
+
+  /// 日期选择占位提示
+  ///
+  /// In zh, this message translates to:
+  /// **'日期选择功能开发中...'**
+  String get statsDatePickerWip;
+
+  /// 顶栏日期占位，接入接口后改为动态
+  ///
+  /// In zh, this message translates to:
+  /// **'2026年9月'**
+  String get statsMonth;
+
+  /// 概览卡片 1
+  ///
+  /// In zh, this message translates to:
+  /// **'今日摄入'**
+  String get statsTodayIntake;
+
+  /// 概览卡片 2
+  ///
+  /// In zh, this message translates to:
+  /// **'本周平均'**
+  String get statsWeekAverage;
+
+  /// 柱状图标题
+  ///
+  /// In zh, this message translates to:
+  /// **'📈 近两周热量趋势'**
+  String get statsCalorieTrend;
+
+  /// 环形图标题
+  ///
+  /// In zh, this message translates to:
+  /// **'🍩 营养均衡度'**
+  String get statsNutrition;
+
+  /// 营养图例
+  ///
+  /// In zh, this message translates to:
+  /// **'碳水'**
+  String get statsCarbs;
+
+  /// 营养图例
+  ///
+  /// In zh, this message translates to:
+  /// **'蛋白质'**
+  String get statsProtein;
+
+  /// 营养图例
+  ///
+  /// In zh, this message translates to:
+  /// **'脂肪'**
+  String get statsFat;
+
+  /// 历史记录标题
+  ///
+  /// In zh, this message translates to:
+  /// **'📋 历史记录'**
+  String get statsHistory;
+
+  /// 数据保留策略提示，属服务端策略，暂未接入
+  ///
+  /// In zh, this message translates to:
+  /// **'数据保存时间: 永久保存 (点击修改)'**
+  String get statsRetention;
+
+  /// 设置页标题，也是底部导航第 4 个 Tab 的名字
   ///
   /// In zh, this message translates to:
   /// **'设置'**

@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:cooking_app/core/storage/preference_storage.dart';
 import 'package:cooking_app/core/utils/greeting.dart';
+import 'package:cooking_app/l10n/generated/app_localizations_zh.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -13,8 +14,14 @@ void main() {
     testWidgets('默认进入烹饪页，并显示问候语和核心功能区', (tester) async {
       await pumpApp(tester);
 
-      // 问候语随当前时间变化，所以用同一个纯函数算出期望值
-      final greeting = greetingForHour(DateTime.now().hour);
+      // 问候语随当前时间变化：先用同一个纯函数算出时段，再取对应语言的文案。
+      // 测试默认语言是中文，所以用 zh 的文案表算期望值。
+      final zh = AppLocalizationsZh();
+      final greeting = switch (dayPartForHour(DateTime.now().hour)) {
+        DayPart.morning => zh.greetingMorning,
+        DayPart.noon => zh.greetingNoon,
+        DayPart.evening => zh.greetingEvening,
+      };
       expect(find.text('美食家, $greeting'), findsOneWidget);
       expect(find.text('今天想做点什么？'), findsOneWidget);
 

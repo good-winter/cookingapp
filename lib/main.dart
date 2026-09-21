@@ -5,6 +5,7 @@ import 'core/bootstrap.dart';
 import 'core/theme/app_theme.dart';
 import 'core/router/app_router.dart';
 import 'l10n/generated/app_localizations.dart';
+import 'l10n/l10n.dart';
 import 'providers/settings_provider.dart';
 
 Future<void> main() async {
@@ -29,7 +30,9 @@ class MyApp extends ConsumerWidget {
     final settings = ref.watch(settingsProvider);
 
     return MaterialApp.router(
-      title: 'AI 智能做饭',
+      // 用 onGenerateTitle 而不是 title：title 在 Localizations 之上，
+      // 拿不到当前语言。这样系统任务切换器里的应用名也会跟随语言。
+      onGenerateTitle: (context) => context.l10n.appTitle,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: settings.themeMode,

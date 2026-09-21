@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/greeting.dart';
+import '../../../l10n/enum_labels.dart';
+import '../../../l10n/l10n.dart';
 import '../../../providers/preference_provider.dart';
 import '../data/mock_recipes.dart';
 import '../models/recipe.dart';
@@ -15,6 +17,7 @@ class CookingScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final prefs = ref.watch(preferenceProvider);
     final scheme = Theme.of(context).colorScheme;
+    final l10n = context.l10n;
 
     // 👤 这里预留后端对接：未来通过API获取用户的昵称
     final String userName = "美食家";
@@ -39,13 +42,13 @@ class CookingScreen extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          // 🕒 问候语随时间变化，判断逻辑在 core/utils/greeting.dart
-                          '$userName, ${greetingForHour(DateTime.now().hour)}',
+                          // 🕒 时段判断在 core/utils/greeting.dart，文案在 l10n
+                          '$userName, ${l10n.dayPart(dayPartForHour(DateTime.now().hour))}',
                           style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          '今天想做点什么？',
+                          l10n.cookingSubtitle,
                           style: TextStyle(
                             color: scheme.onSurfaceVariant,
                             fontSize: 14,
@@ -68,7 +71,7 @@ class CookingScreen extends ConsumerWidget {
                             Icon(Icons.person, size: 16, color: scheme.onSurfaceVariant),
                             const SizedBox(width: 4),
                             Text(
-                              prefs.dietMode,
+                              l10n.dietMode(prefs.dietMode),
                               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
                             ),
                             Icon(Icons.arrow_drop_down, size: 16, color: scheme.onSurfaceVariant),
@@ -101,13 +104,13 @@ class CookingScreen extends ConsumerWidget {
                       children: [
                         const Icon(Icons.camera_alt, size: 64, color: Color(0xFFFF7A00)),
                         const SizedBox(height: 16),
-                        const Text(
-                          'AI 拍照识别食材',
-                          style: TextStyle(color: Color(0xFFFF7A00), fontWeight: FontWeight.bold, fontSize: 20),
+                        Text(
+                          l10n.cookingCameraTitle,
+                          style: const TextStyle(color: Color(0xFFFF7A00), fontWeight: FontWeight.bold, fontSize: 20),
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          '自动判断荤素与新鲜度，保障饮食安全',
+                          l10n.cookingCameraSubtitle,
                           style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12),
                         ),
                       ],
@@ -120,9 +123,11 @@ class CookingScreen extends ConsumerWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('🔥 为你推荐', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  Text(l10n.cookingRecommendTitle, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                   Text(
-                    prefs.crowds.isEmpty ? '(综合推荐)' : '(适配: ${prefs.crowds.join("/")})',
+                    prefs.crowds.isEmpty
+                        ? l10n.cookingRecommendAll
+                        : l10n.cookingRecommendFor(l10n.crowdList(prefs.crowds)),
                     style: const TextStyle(color: Color(0xFFFF7A00), fontSize: 12),
                   ),
                 ],
@@ -133,7 +138,7 @@ class CookingScreen extends ConsumerWidget {
               SizedBox(
                 height: 130, // 高度限制，防止占据太多屏幕
                 child: filteredRecipes.isEmpty
-                    ? const Center(child: Text('没有找到符合您当前偏好的菜谱。'))
+                    ? Center(child: Text(l10n.cookingNoResults))
                     : ListView.builder(
                   scrollDirection: Axis.horizontal,
                   itemCount: filteredRecipes.length,
