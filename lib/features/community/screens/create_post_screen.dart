@@ -1,6 +1,8 @@
 // lib/features/community/screens/create_post_screen.dart
 import 'package:flutter/material.dart';
 
+import '../../../core/theme/app_theme.dart';
+
 class CreatePostScreen extends StatefulWidget {
   const CreatePostScreen({super.key});
 
@@ -38,16 +40,21 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      // 背景色交给 scaffoldBackgroundColor，不再写死浅灰
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: AppTheme.cardColor(context),
         elevation: 0,
         leading: TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('取消', style: TextStyle(color: Colors.grey, fontSize: 16)),
+          child: Text(
+            '取消',
+            style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 16),
+          ),
         ),
-        title: const Text('发布动态', style: TextStyle(color: Colors.black, fontSize: 18, fontWeight: FontWeight.bold)),
+        title: Text('发布动态', style: TextStyle(color: scheme.onSurface, fontSize: 18, fontWeight: FontWeight.bold)),
         centerTitle: true,
         actions: [
           Padding(
@@ -73,7 +80,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
             // 1. 文本输入区
             Container(
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppTheme.cardColor(context),
                 borderRadius: BorderRadius.circular(16),
               ),
               padding: const EdgeInsets.all(16),
@@ -114,18 +121,18 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                     },
                     child: Container(
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: AppTheme.cardColor(context),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.grey.shade300, style: BorderStyle.solid),
+                        border: Border.all(color: scheme.outlineVariant, style: BorderStyle.solid),
                       ),
-                      child: const Icon(Icons.add_a_photo_outlined, color: Colors.grey, size: 30),
+                      child: Icon(Icons.add_a_photo_outlined, color: scheme.onSurfaceVariant, size: 30),
                     ),
                   );
                 }
                 // 已选图片占位
                 return Container(
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade200,
+                    color: scheme.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Center(child: Text('🍲', style: TextStyle(fontSize: 40))),
@@ -145,10 +152,10 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                 return FilterChip(
                   label: Text('#$tag'),
                   selected: isSelected,
-                  selectedColor: const Color(0xFFFFF0E5),
+                  selectedColor: AppTheme.softPrimary(context),
                   checkmarkColor: const Color(0xFFFF7A00),
                   labelStyle: TextStyle(
-                    color: isSelected ? const Color(0xFFFF7A00) : Colors.black87,
+                    color: isSelected ? const Color(0xFFFF7A00) : scheme.onSurface,
                     fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                   ),
                   onSelected: (selected) {
@@ -166,10 +173,10 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
             const SizedBox(height: 40),
 
             // 4. 提示文字
-            const Center(
+            Center(
               child: Text(
                 '友善发言，分享美好食光 ✨',
-                style: TextStyle(color: Colors.grey, fontSize: 12),
+                style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12),
               ),
             ),
             const SizedBox(height: 20),

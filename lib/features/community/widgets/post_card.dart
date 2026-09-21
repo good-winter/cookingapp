@@ -1,5 +1,6 @@
 // lib/features/community/widgets/post_card.dart
 import 'package:flutter/material.dart';
+import '../../../core/theme/app_theme.dart';
 import '../models/post.dart';
 
 class PostCard extends StatelessWidget {
@@ -16,18 +17,14 @@ class PostCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppTheme.cardColor(context),
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        boxShadow: AppTheme.cardShadow(context),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -38,7 +35,7 @@ class PostCard extends StatelessWidget {
             child: Row(
               children: [
                 CircleAvatar(
-                  backgroundColor: const Color(0xFFFFF0E5),
+                  backgroundColor: AppTheme.softPrimary(context),
                   child: Text(
                     post.userAvatar,
                     style: const TextStyle(color: Color(0xFFFF7A00), fontWeight: FontWeight.bold),
@@ -60,7 +57,9 @@ class PostCard extends StatelessWidget {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFE8F8F0),
+                              // 半透明绿在深浅两种底色下都成立，
+                              // 写死的浅绿 (#E8F8F0) 在深色模式会变成一块亮斑
+                              color: const Color(0xFF2ECC71).withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: Text(
@@ -73,7 +72,10 @@ class PostCard extends StatelessWidget {
                       const SizedBox(height: 4),
                       Text(
                         post.time,
-                        style: const TextStyle(fontSize: 11, color: Colors.grey),
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: scheme.onSurfaceVariant,
+                        ),
                       ),
                     ],
                   ),
@@ -82,7 +84,9 @@ class PostCard extends StatelessWidget {
                 TextButton(
                   onPressed: onFollow,
                   style: TextButton.styleFrom(
-                    foregroundColor: post.isFollowed ? Colors.grey : const Color(0xFFFF7A00),
+                    foregroundColor: post.isFollowed
+                        ? scheme.onSurfaceVariant
+                        : const Color(0xFFFF7A00),
                     padding: EdgeInsets.zero,
                     minimumSize: const Size(50, 30),
                   ),
@@ -108,7 +112,7 @@ class PostCard extends StatelessWidget {
             height: 200,
             margin: const EdgeInsets.symmetric(horizontal: 16),
             decoration: BoxDecoration(
-              color: Colors.grey.shade100,
+              color: scheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(12),
             ),
             child: Center(
@@ -138,13 +142,13 @@ class PostCard extends StatelessWidget {
               children: [
                 _buildActionItem(
                   icon: post.isLiked ? Icons.favorite : Icons.favorite_border,
-                  color: post.isLiked ? Colors.red : Colors.grey,
+                  color: post.isLiked ? Colors.red : scheme.onSurfaceVariant,
                   count: post.likes,
                   onTap: onLike,
                 ),
-                _buildActionItem(icon: Icons.chat_bubble_outline, color: Colors.grey, count: post.comments),
-                _buildActionItem(icon: Icons.star_border, color: Colors.grey, count: 0),
-                _buildActionItem(icon: Icons.share_outlined, color: Colors.grey, count: 0),
+                _buildActionItem(icon: Icons.chat_bubble_outline, color: scheme.onSurfaceVariant, count: post.comments),
+                _buildActionItem(icon: Icons.star_border, color: scheme.onSurfaceVariant, count: 0),
+                _buildActionItem(icon: Icons.share_outlined, color: scheme.onSurfaceVariant, count: 0),
               ],
             ),
           ),
@@ -165,7 +169,7 @@ class PostCard extends StatelessWidget {
         children: [
           Icon(icon, size: 20, color: color),
           const SizedBox(width: 4),
-          Text('$count', style: TextStyle(color: color == Colors.grey ? Colors.grey : color, fontSize: 13)),
+          Text('$count', style: TextStyle(color: color, fontSize: 13)),
         ],
       ),
     );

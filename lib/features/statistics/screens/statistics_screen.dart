@@ -2,6 +2,8 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 
+import '../../../core/theme/app_theme.dart';
+
 class StatisticsScreen extends StatefulWidget {
   const StatisticsScreen({super.key});
 
@@ -29,6 +31,8 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('统计', style: TextStyle(fontWeight: FontWeight.bold)),
@@ -41,8 +45,8 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                 const SnackBar(content: Text('日期选择功能开发中...')),
               );
             },
-            icon: const Icon(Icons.calendar_today, size: 16, color: Colors.grey),
-            label: const Text('2026年9月', style: TextStyle(color: Colors.grey, fontSize: 14)),
+            icon: Icon(Icons.calendar_today, size: 16, color: scheme.onSurfaceVariant),
+            label: Text('2026年9月', style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 14)),
           ),
           const SizedBox(width: 8),
         ],
@@ -69,9 +73,9 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
               height: 200,
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppTheme.cardColor(context),
                 borderRadius: BorderRadius.circular(16),
-                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10)],
+                boxShadow: AppTheme.cardShadow(context),
               ),
               child: BarChart(
                 BarChartData(
@@ -90,7 +94,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                               padding: const EdgeInsets.only(top: 8.0),
                               child: Text(
                                 _dates[value.toInt()],
-                                style: const TextStyle(color: Colors.grey, fontSize: 10),
+                                style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 10),
                               ),
                             );
                           }
@@ -107,7 +111,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                     show: true,
                     drawVerticalLine: false,
                     horizontalInterval: 1000,
-                    getDrawingHorizontalLine: (value) => FlLine(color: Colors.grey.shade200, strokeWidth: 1),
+                    getDrawingHorizontalLine: (value) => FlLine(color: scheme.outlineVariant, strokeWidth: 1),
                   ),
                   borderData: FlBorderData(show: false),
                   barGroups: List.generate(_weeklyCalories.length, (index) {
@@ -135,9 +139,9 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
               height: 220,
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppTheme.cardColor(context),
                 borderRadius: BorderRadius.circular(16),
-                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10)],
+                boxShadow: AppTheme.cardShadow(context),
               ),
               child: Row(
                 children: [
@@ -197,9 +201,9 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
             const SizedBox(height: 12),
             Container(
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppTheme.cardColor(context),
                 borderRadius: BorderRadius.circular(16),
-                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10)],
+                boxShadow: AppTheme.cardShadow(context),
               ),
               child: ListView.separated(
                 shrinkWrap: true,
@@ -212,13 +216,13 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                     leading: Container(
                       width: 40, height: 40,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF8F9FA),
+                        color: scheme.surfaceContainerHighest,
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: const Center(child: Text('🍲', style: TextStyle(fontSize: 20))),
                     ),
                     title: Text(record['name']!, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                    subtitle: Text(record['date']!, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                    subtitle: Text(record['date']!, style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
                     trailing: Text(record['calories']!, style: const TextStyle(color: Color(0xFFFF7A00), fontWeight: FontWeight.bold)),
                   );
                 },
@@ -230,10 +234,15 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
             Center(
               child: TextButton.icon(
                 onPressed: () {
-                  // TODO: 跳转到设置页面的数据保存时间
+                  // TODO: 「数据保存时间」属于服务端的数据保留策略，不是本地设置项，
+                  //       所以没有放进设置页。等接口契约补上相关端点后再接
+                  //       （见 docs/API_CONTRACT.md）。
                 },
-                icon: const Icon(Icons.info_outline, size: 16, color: Colors.grey),
-                label: const Text('数据保存时间: 永久保存 (点击修改)', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                icon: Icon(Icons.info_outline, size: 16, color: scheme.onSurfaceVariant),
+                label: Text(
+                  '数据保存时间: 永久保存 (点击修改)',
+                  style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12),
+                ),
               ),
             ),
             const SizedBox(height: 40),
@@ -245,18 +254,20 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
 
   // 构建概览卡片
   Widget _buildStatCard(String title, String value, String unit, Color color) {
+    final scheme = Theme.of(context).colorScheme;
+
     return Expanded(
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppTheme.cardColor(context),
           borderRadius: BorderRadius.circular(16),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10)],
+          boxShadow: AppTheme.cardShadow(context),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(title, style: const TextStyle(color: Colors.grey, fontSize: 13)),
+            Text(title, style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 13)),
             const SizedBox(height: 8),
             Row(
               crossAxisAlignment: CrossAxisAlignment.end,
@@ -265,7 +276,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                 const SizedBox(width: 4),
                 Padding(
                   padding: const EdgeInsets.only(bottom: 4.0),
-                  child: Text(unit, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                  child: Text(unit, style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
                 ),
               ],
             ),
@@ -281,7 +292,13 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
       children: [
         Container(width: 12, height: 12, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
         const SizedBox(width: 8),
-        Text(text, style: const TextStyle(fontSize: 13, color: Colors.black87)),
+        Text(
+          text,
+          style: TextStyle(
+            fontSize: 13,
+            color: Theme.of(context).colorScheme.onSurface,
+          ),
+        ),
       ],
     );
   }

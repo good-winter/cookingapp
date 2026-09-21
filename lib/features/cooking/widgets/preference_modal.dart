@@ -1,6 +1,7 @@
 // lib/features/cooking/widgets/preference_modal.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../models/user_preferences.dart';
 import '../../../providers/preference_provider.dart';
 
@@ -31,9 +32,9 @@ class _PreferenceModalState extends ConsumerState<PreferenceModal> {
     return Container(
       padding: const EdgeInsets.all(24),
       height: MediaQuery.of(context).size.height * 0.7,
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      decoration: BoxDecoration(
+        color: AppTheme.cardColor(context),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -58,7 +59,7 @@ class _PreferenceModalState extends ConsumerState<PreferenceModal> {
                   _buildSectionTitle('1. 饮食习惯'),
                   Wrap(
                     spacing: 8,
-                    children: ['正常人', '素食主义'].map((mode) {
+                    children: dietModeOptions.map((mode) {
                       return ChoiceChip(
                         label: Text(mode),
                         selected: _tempDietMode == mode,
@@ -150,8 +151,13 @@ class _PreferenceModalState extends ConsumerState<PreferenceModal> {
   Widget _buildSectionTitle(String title) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12.0),
-      child: Text(title,
-          style: const TextStyle(fontSize: 14, color: Colors.grey)),
+      child: Text(
+        title,
+        style: TextStyle(
+          fontSize: 14,
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
+      ),
     );
   }
 }

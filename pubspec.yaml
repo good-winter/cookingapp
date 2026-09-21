@@ -11,6 +11,11 @@ dependencies:
   flutter:
     sdk: flutter
 
+  # 国际化（设置页的语言切换用）
+  flutter_localizations:
+    sdk: flutter
+  intl: any
+
   # 核心依赖库
   flutter_riverpod: ^2.4.9
   go_router: ^13.2.0
@@ -31,6 +36,9 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
+  # 开启国际化代码生成（配合根目录 l10n.yaml）
+  generate: true
 
   # 如果你以后有图片资源，可以在下面添加 assets
   # assets:
