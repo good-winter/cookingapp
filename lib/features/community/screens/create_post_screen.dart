@@ -1,6 +1,9 @@
 // lib/features/community/screens/create_post_screen.dart
 import 'package:flutter/material.dart';
 
+import '../../../core/theme/app_theme.dart';
+import '../../../l10n/l10n.dart';
+
 class CreatePostScreen extends StatefulWidget {
   const CreatePostScreen({super.key});
 
@@ -24,7 +27,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   void _submitPost() {
     if (_textController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('写点什么再发布吧~')),
+        SnackBar(content: Text(context.l10n.createPostEmpty)),
       );
       return;
     }
@@ -38,16 +41,22 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final l10n = context.l10n;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      // 背景色交给 scaffoldBackgroundColor，不再写死浅灰
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: AppTheme.cardColor(context),
         elevation: 0,
         leading: TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('取消', style: TextStyle(color: Colors.grey, fontSize: 16)),
+          child: Text(
+            l10n.actionCancel,
+            style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 16),
+          ),
         ),
-        title: const Text('发布动态', style: TextStyle(color: Colors.black, fontSize: 18, fontWeight: FontWeight.bold)),
+        title: Text(l10n.createPostTitle, style: TextStyle(color: scheme.onSurface, fontSize: 18, fontWeight: FontWeight.bold)),
         centerTitle: true,
         actions: [
           Padding(
@@ -60,7 +69,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                 elevation: 0,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
               ),
-              child: const Text('发布'),
+              child: Text(l10n.createPostPublish),
             ),
           ),
         ],
@@ -73,7 +82,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
             // 1. 文本输入区
             Container(
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppTheme.cardColor(context),
                 borderRadius: BorderRadius.circular(16),
               ),
               padding: const EdgeInsets.all(16),
@@ -81,8 +90,8 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                 controller: _textController,
                 maxLines: 6,
                 maxLength: 500,
-                decoration: const InputDecoration(
-                  hintText: '分享你的做饭心得、成果或求助...',
+                decoration: InputDecoration(
+                  hintText: l10n.createPostHint,
                   border: InputBorder.none,
                   counterText: '', // 隐藏右下角字数统计
                 ),
@@ -92,7 +101,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
             const SizedBox(height: 16),
 
             // 2. 图片选择区 (模拟)
-            const Text('添加图片', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+            Text(l10n.createPostAddImage, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
             const SizedBox(height: 12),
             GridView.builder(
               shrinkWrap: true,
@@ -109,23 +118,23 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                   return GestureDetector(
                     onTap: () {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('图片选择器开发中（后续可接入 image_picker）')),
+                        SnackBar(content: Text(l10n.createPostImagePickerWip)),
                       );
                     },
                     child: Container(
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: AppTheme.cardColor(context),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.grey.shade300, style: BorderStyle.solid),
+                        border: Border.all(color: scheme.outlineVariant, style: BorderStyle.solid),
                       ),
-                      child: const Icon(Icons.add_a_photo_outlined, color: Colors.grey, size: 30),
+                      child: Icon(Icons.add_a_photo_outlined, color: scheme.onSurfaceVariant, size: 30),
                     ),
                   );
                 }
                 // 已选图片占位
                 return Container(
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade200,
+                    color: scheme.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Center(child: Text('🍲', style: TextStyle(fontSize: 40))),
@@ -135,7 +144,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
             const SizedBox(height: 24),
 
             // 3. 话题标签选择
-            const Text('添加话题', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+            Text(l10n.createPostAddTopic, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
             const SizedBox(height: 12),
             Wrap(
               spacing: 10,
@@ -145,10 +154,10 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                 return FilterChip(
                   label: Text('#$tag'),
                   selected: isSelected,
-                  selectedColor: const Color(0xFFFFF0E5),
+                  selectedColor: AppTheme.softPrimary(context),
                   checkmarkColor: const Color(0xFFFF7A00),
                   labelStyle: TextStyle(
-                    color: isSelected ? const Color(0xFFFF7A00) : Colors.black87,
+                    color: isSelected ? const Color(0xFFFF7A00) : scheme.onSurface,
                     fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                   ),
                   onSelected: (selected) {
@@ -166,10 +175,10 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
             const SizedBox(height: 40),
 
             // 4. 提示文字
-            const Center(
+            Center(
               child: Text(
-                '友善发言，分享美好食光 ✨',
-                style: TextStyle(color: Colors.grey, fontSize: 12),
+                l10n.createPostFooter,
+                style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12),
               ),
             ),
             const SizedBox(height: 20),

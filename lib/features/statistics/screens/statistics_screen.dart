@@ -2,6 +2,9 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 
+import '../../../core/theme/app_theme.dart';
+import '../../../l10n/l10n.dart';
+
 class StatisticsScreen extends StatefulWidget {
   const StatisticsScreen({super.key});
 
@@ -29,20 +32,23 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final l10n = context.l10n;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('统计', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: Text(l10n.navStatistics, style: const TextStyle(fontWeight: FontWeight.bold)),
         actions: [
           // 日期选择器入口
           TextButton.icon(
             onPressed: () {
               // TODO: 实现日期范围选择
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('日期选择功能开发中...')),
+                SnackBar(content: Text(l10n.statsDatePickerWip)),
               );
             },
-            icon: const Icon(Icons.calendar_today, size: 16, color: Colors.grey),
-            label: const Text('2026年9月', style: TextStyle(color: Colors.grey, fontSize: 14)),
+            icon: Icon(Icons.calendar_today, size: 16, color: scheme.onSurfaceVariant),
+            label: Text(l10n.statsMonth, style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 14)),
           ),
           const SizedBox(width: 8),
         ],
@@ -55,23 +61,23 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
             // 1. 概览卡片
             Row(
               children: [
-                _buildStatCard('今日摄入', '1800', 'kcal', const Color(0xFFFF7A00)), // 突出今日
+                _buildStatCard(l10n.statsTodayIntake, '1800', 'kcal', const Color(0xFFFF7A00)), // 突出今日
                 const SizedBox(width: 16),
-                _buildStatCard('本周平均', '1950', 'kcal', const Color(0xFF2ECC71)),
+                _buildStatCard(l10n.statsWeekAverage, '1950', 'kcal', const Color(0xFF2ECC71)),
               ],
             ),
             const SizedBox(height: 24),
 
             // 2. 近两周热量趋势 (柱状图)
-            const Text('📈 近两周热量趋势', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            Text(l10n.statsCalorieTrend, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             const SizedBox(height: 16),
             Container(
               height: 200,
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppTheme.cardColor(context),
                 borderRadius: BorderRadius.circular(16),
-                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10)],
+                boxShadow: AppTheme.cardShadow(context),
               ),
               child: BarChart(
                 BarChartData(
@@ -90,7 +96,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                               padding: const EdgeInsets.only(top: 8.0),
                               child: Text(
                                 _dates[value.toInt()],
-                                style: const TextStyle(color: Colors.grey, fontSize: 10),
+                                style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 10),
                               ),
                             );
                           }
@@ -107,7 +113,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                     show: true,
                     drawVerticalLine: false,
                     horizontalInterval: 1000,
-                    getDrawingHorizontalLine: (value) => FlLine(color: Colors.grey.shade200, strokeWidth: 1),
+                    getDrawingHorizontalLine: (value) => FlLine(color: scheme.outlineVariant, strokeWidth: 1),
                   ),
                   borderData: FlBorderData(show: false),
                   barGroups: List.generate(_weeklyCalories.length, (index) {
@@ -129,15 +135,15 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
             const SizedBox(height: 24),
 
             // 3. 营养均衡度 (环形图)
-            const Text('🍩 营养均衡度', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            Text(l10n.statsNutrition, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             const SizedBox(height: 16),
             Container(
               height: 220,
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppTheme.cardColor(context),
                 borderRadius: BorderRadius.circular(16),
-                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10)],
+                boxShadow: AppTheme.cardShadow(context),
               ),
               child: Row(
                 children: [
@@ -179,11 +185,11 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _buildLegendItem(const Color(0xFFFF7A00), '碳水'),
+                        _buildLegendItem(const Color(0xFFFF7A00), l10n.statsCarbs),
                         const SizedBox(height: 8),
-                        _buildLegendItem(const Color(0xFF2ECC71), '蛋白质'),
+                        _buildLegendItem(const Color(0xFF2ECC71), l10n.statsProtein),
                         const SizedBox(height: 8),
-                        _buildLegendItem(const Color(0xFF3498DB), '脂肪'),
+                        _buildLegendItem(const Color(0xFF3498DB), l10n.statsFat),
                       ],
                     ),
                   ),
@@ -193,13 +199,13 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
             const SizedBox(height: 24),
 
             // 4. 历史记录
-            const Text('📋 历史记录', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            Text(l10n.statsHistory, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             const SizedBox(height: 12),
             Container(
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppTheme.cardColor(context),
                 borderRadius: BorderRadius.circular(16),
-                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10)],
+                boxShadow: AppTheme.cardShadow(context),
               ),
               child: ListView.separated(
                 shrinkWrap: true,
@@ -212,13 +218,13 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                     leading: Container(
                       width: 40, height: 40,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF8F9FA),
+                        color: scheme.surfaceContainerHighest,
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: const Center(child: Text('🍲', style: TextStyle(fontSize: 20))),
                     ),
                     title: Text(record['name']!, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                    subtitle: Text(record['date']!, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                    subtitle: Text(record['date']!, style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
                     trailing: Text(record['calories']!, style: const TextStyle(color: Color(0xFFFF7A00), fontWeight: FontWeight.bold)),
                   );
                 },
@@ -230,10 +236,15 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
             Center(
               child: TextButton.icon(
                 onPressed: () {
-                  // TODO: 跳转到设置页面的数据保存时间
+                  // TODO: 「数据保存时间」属于服务端的数据保留策略，不是本地设置项，
+                  //       所以没有放进设置页。等接口契约补上相关端点后再接
+                  //       （见 docs/API_CONTRACT.md）。
                 },
-                icon: const Icon(Icons.info_outline, size: 16, color: Colors.grey),
-                label: const Text('数据保存时间: 永久保存 (点击修改)', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                icon: Icon(Icons.info_outline, size: 16, color: scheme.onSurfaceVariant),
+                label: Text(
+                  l10n.statsRetention,
+                  style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12),
+                ),
               ),
             ),
             const SizedBox(height: 40),
@@ -245,18 +256,20 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
 
   // 构建概览卡片
   Widget _buildStatCard(String title, String value, String unit, Color color) {
+    final scheme = Theme.of(context).colorScheme;
+
     return Expanded(
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppTheme.cardColor(context),
           borderRadius: BorderRadius.circular(16),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10)],
+          boxShadow: AppTheme.cardShadow(context),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(title, style: const TextStyle(color: Colors.grey, fontSize: 13)),
+            Text(title, style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 13)),
             const SizedBox(height: 8),
             Row(
               crossAxisAlignment: CrossAxisAlignment.end,
@@ -265,7 +278,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                 const SizedBox(width: 4),
                 Padding(
                   padding: const EdgeInsets.only(bottom: 4.0),
-                  child: Text(unit, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                  child: Text(unit, style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
                 ),
               ],
             ),
@@ -281,7 +294,13 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
       children: [
         Container(width: 12, height: 12, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
         const SizedBox(width: 8),
-        Text(text, style: const TextStyle(fontSize: 13, color: Colors.black87)),
+        Text(
+          text,
+          style: TextStyle(
+            fontSize: 13,
+            color: Theme.of(context).colorScheme.onSurface,
+          ),
+        ),
       ],
     );
   }

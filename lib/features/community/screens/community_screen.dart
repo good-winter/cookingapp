@@ -1,5 +1,7 @@
 // lib/features/community/screens/community_screen.dart
 import 'package:flutter/material.dart';
+
+import '../../../l10n/l10n.dart';
 import '../models/post.dart';
 import '../widgets/post_card.dart';
 import 'create_post_screen.dart';
@@ -68,9 +70,11 @@ class _CommunityScreenState extends State<CommunityScreen> with SingleTickerProv
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('社区', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: Text(l10n.navCommunity, style: const TextStyle(fontWeight: FontWeight.bold)),
         actions: [
           IconButton(
             icon: const Icon(Icons.search),
@@ -83,10 +87,10 @@ class _CommunityScreenState extends State<CommunityScreen> with SingleTickerProv
           unselectedLabelColor: Colors.grey,
           indicatorColor: const Color(0xFFFF7A00),
           indicatorSize: TabBarIndicatorSize.label,
-          tabs: const [
-            Tab(text: '推荐'),
-            Tab(text: '关注'),
-            Tab(text: '同城'),
+          tabs: [
+            Tab(text: l10n.feedRecommend),
+            Tab(text: l10n.feedFollowing),
+            Tab(text: l10n.feedNearby),
           ],
         ),
       ),
@@ -135,7 +139,7 @@ class _CommunityScreenState extends State<CommunityScreen> with SingleTickerProv
 
             // 提示发布成功
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('发布成功！'), backgroundColor: Color(0xFFFF7A00)),
+              SnackBar(content: Text(l10n.publishSuccess), backgroundColor: const Color(0xFFFF7A00)),
             );
           }
         },

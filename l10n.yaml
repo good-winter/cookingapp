@@ -1,0 +1,10 @@
+# 国际化代码生成配置（flutter gen-l10n）
+#
+# 目前只有设置页走 i18n，其余页面仍是硬编码中文 —— 这是刻意的：
+# 烹饪/社区/统计三页即将被 dio 接口迁移重写，现在翻译会返工。
+# 等迁移完成后再逐步把其余文案搬进来。
+arb-dir: lib/l10n
+template-arb-file: app_zh.arb
+output-localization-file: app_localizations.dart
+output-class: AppLocalizations
+output-dir: lib/l10n/generated
