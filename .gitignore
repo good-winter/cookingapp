@@ -46,3 +46,6 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+
+# 后端本地配置（含数据库密码，不进版本库）
+server/.env
