@@ -72,6 +72,11 @@ func testRouter(t *testing.T) *gin.Engine {
 	})
 }
 
+// contains 供各测试文件断言响应体片段。
+func contains(haystack, needle string) bool {
+	return strings.Contains(haystack, needle)
+}
+
 func getWithToken(t *testing.T, r *gin.Engine, path, token string) *httptest.ResponseRecorder {
 	t.Helper()
 	req := httptest.NewRequest(http.MethodGet, path, nil)

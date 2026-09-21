@@ -20,6 +20,11 @@ func NewRouter(cfg config.Config, h *Handler) *gin.Engine {
 	v1.Use(middleware.Auth(h.Tokens, cfg.IsDevelopment()))
 	{
 		v1.GET("/me", h.GetMe)
+		v1.PUT("/me/preferences", h.PutPreferences)
+
+		v1.GET("/preferences/options", h.GetOptions)
+
+		v1.GET("/recipes/recommend", h.GetRecommend)
 	}
 
 	return r

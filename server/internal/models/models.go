@@ -54,6 +54,24 @@ type PreferenceOptions struct {
 	AvoidFoods []Option `json:"avoidFoods"`
 }
 
+// Normalized 保证三个数组字段非 nil。
+// 契约要求空数组序列化为 []，而零值 struct 的三个字段都是 nil —— 会在边界上
+// 输出 null。在 handler 出口调用它，使这条保证不依赖 store 实现是否记得初始化。
+func (o PreferenceOptions) Normalized() PreferenceOptions {
+	return PreferenceOptions{
+		DietModes:  orEmptyOptions(o.DietModes),
+		Crowds:     orEmptyOptions(o.Crowds),
+		AvoidFoods: orEmptyOptions(o.AvoidFoods),
+	}
+}
+
+func orEmptyOptions(s []Option) []Option {
+	if s == nil {
+		return []Option{}
+	}
+	return s
+}
+
 func orEmpty(s []string) []string {
 	if s == nil {
 		return []string{}
