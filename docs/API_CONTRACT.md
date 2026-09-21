@@ -1,7 +1,7 @@
 # cookingapp 后端接口契约设计
 
 日期: 2026-09-21
-状态: 待评审
+状态: v2 已定稿（前端评审意见 10 条已全部处置，见文末）
 
 ---
 
@@ -9,12 +9,13 @@
 
 cooking_app 是一个双人协作的 Flutter 项目：前端由合作者编写，后端由本文档作者负责。
 
-前端目前是一个纯 UI 原型，所有数据都是内存里的假数据：
+本文档撰写时（2026-09-21 白天），前端是一个纯 UI 原型：dio、flutter_tts、
+image_picker、shared_preferences 虽已在 pubspec.yaml 声明但零引用，也不存在任何
+fromJson / toJson。因此当时不存在事实上的接口契约，本文档从零设计。
 
-- dio、flutter_tts、image_picker、shared_preferences 四个依赖已在 pubspec.yaml 声明，但全项目零引用。
-- 全项目没有任何 fromJson / toJson，模型类只是 UI 用的内存对象。
-
-因此不存在任何事实上的接口契约，本文档从零设计。
+**状态更新（契约 v2）：** 前端随后落地了设置页、深色模式与 i18n，上述两项描述已过时 ——
+shared_preferences 已用于本地持久化，fromJson / toJson 也已存在。契约正文只描述
+「接口应为何」，不再断言前端现状；前端实况以「前端改造清单」一节为准。
 
 后端起点的状态是全新起步，无任何现有代码。
 
@@ -89,6 +90,16 @@ GET /resource?cursor=<opaque>&limit=20
 
 选择游标式而非页码式的原因：社区推荐流会持续插入新帖，页码式在翻页时会出现重复或漏帖。代价是无法跳转到指定页，但信息流场景不需要该能力。
 
+**排序键。** 游标分页的正确性依赖一个稳定的全序，否则翻页会重复或漏记录。约定如下：
+
+| 接口 | 排序键 |
+|---|---|
+| 按时间倒序的信息流（`/posts`、`/stats/records`） | `(createdAt DESC, id DESC)` |
+| `/recipes/recommend` | `(匹配人群数 DESC, id ASC)` |
+
+`/stats/records` 尤其要注意：同一自然日可能有多餐，`date` 是天粒度、不足以定序，
+必须让 `createdAt` 参与排序键。
+
 ### 错误格式
 
 ```json
@@ -141,6 +152,18 @@ GET /resource?cursor=<opaque>&limit=20
 
 点赞与关注使用 PUT / DELETE，而非 POST。这样天然幂等：重复调用不报错，返回当前状态。前端在弱网重试时无需特殊处理。
 
+### 上传限制
+
+| 项 | 值 |
+|---|---|
+| 单张图片大小上限 | 5 MB |
+| 接受格式 | jpg / jpeg / png / webp |
+
+超限返回 `413 IMAGE_TOO_LARGE`，格式不符返回 `400 UNSUPPORTED_IMAGE_FORMAT`。
+
+前端必须在**上传前**压缩（image_picker 的 maxWidth / imageQuality），
+否则移动网络下传原图会撞上识别接口 30 秒的超时。
+
 ## 数据模型
 
 ### 枚举编码
@@ -156,6 +179,16 @@ GET /resource?cursor=<opaque>&limit=20
 原因：'正常人' 是展示文案而非语义名称，文案调整会导致接口破坏性变更；中文作为 URL 查询参数需要额外编码，易引入编码 bug。
 
 代价评估：前端需要新增一张 code → 中文 label 映射表（约 10 行）。由于推荐逻辑已迁移到服务端，前端原本用于匹配的中文比较逻辑本就要删除，剩余中文仅用于显示，因此当前迁移成本很低。
+
+**哪些枚举由服务端下发、哪些由前端本地维护，边界如下：**
+
+| 枚举 | 来源 | 说明 |
+|---|---|---|
+| dietMode / crowds / avoidFoods | 服务端下发（`/preferences/options`） | 数据驱动，后端可能增删选项 |
+| freshness / nutritionSource / MealRecord.source | 前端本地 l10n | 闭集，不随数据变化 |
+
+前一类走接口是为了兑现「新增选项无需发版」；后一类本就是固定集合，
+放进接口只会徒增一次请求，应写在前端的 label 映射表里。
 
 ### User
 
@@ -209,6 +242,8 @@ GET /resource?cursor=<opaque>&limit=20
 {
   "id": "meal_1",
   "date": "2026-09-20",
+  "createdAt": "2026-09-20T12:30:00+08:00",
+  "recipeId": "r_01",
   "recipeName": "番茄炒蛋",
   "emoji": "🍲",
   "calories": 180,
@@ -216,7 +251,11 @@ GET /resource?cursor=<opaque>&limit=20
 }
 ```
 
-`source` 取值 `recognition`，为将来可能的手动记录预留。
+- `source` 取值 `recognition`，为将来可能的手动记录预留。
+- `createdAt` 是**全序排序键**，游标分页依赖它（见「分页」一节的排序键约定）。
+  `date` 是天粒度，同日多餐无法定序，不能单独作为排序依据。
+- `recipeId` 可空：命中菜谱库时有值，模型估算（未命中）时为 null。
+  没有它，「从历史记录点进菜谱详情」就实现不了。
 
 ### Post
 
@@ -227,7 +266,7 @@ GET /resource?cursor=<opaque>&limit=20
     "id": "u_2",
     "nickname": "健身狂人B",
     "avatarText": "B",
-    "tag": "fitness"
+    "tags": ["fitness", "athlete"]
   },
   "createdAt": "2026-09-21T12:00:00+08:00",
   "content": "求问：健身完吃这个热量超了吗？",
@@ -247,11 +286,13 @@ GET /resource?cursor=<opaque>&limit=20
 - `likes` → `likeCount`，`isLiked` → `likedByMe`。点赞是每个用户各自的视角，缺少 `byMe` 语义时前端无法判断当前用户是否点过赞。
 - `time` → `createdAt`（绝对时间）。
 - 新增 `followedAuthor`，用于渲染关注按钮状态。
-- `author.tag` 复用 crowds 枚举（pregnant / student / fitness / elderly / athlete），用于渲染用户身份标签。
+- `author.tags` 是**数组**，复用 crowds 枚举（pregnant / student / fitness / elderly / athlete）。
+  用数组而非单值，是因为用户可勾选多个人群标签，后端不做「取第一个」这类武断截断；
+  前端渲染 `tags.first`，数组为空时不渲染标签。
 
 ## 接口清单
 
-共 11 个接口。
+共 13 个接口。
 
 ### A. 用户与偏好
 
@@ -277,7 +318,13 @@ GET /resource?cursor=<opaque>&limit=20
 
 使用 PUT 全量替换而非 PATCH 的原因：前端偏好弹窗的交互是「编辑完整偏好后一次性提交」，三个字段始终同时提交。PUT 语义更直白，后端也无需处理字段缺省。
 
-**前端流程要求**：保存成功后必须重新请求 `/recipes/recommend`。现有实现是本地立即重算，接入接口后需改为显式重新拉取。
+**前端流程要求**：保存成功后必须重新请求 `/recipes/recommend`，**并丢弃已持有的游标**。
+现有实现是本地立即重算，接入接口后需改为显式重新拉取。
+
+推荐结果由服务端按当前偏好计算，偏好一变，此前签发的游标即失效 —— 继续用它翻页会得到错乱的序列。
+
+**中间态约定：** 「保存成功但重拉推荐失败」时，前端必须显式报错并提供重试入口，
+不得静默展示「偏好已更新、推荐还是旧的」这种不一致状态。
 
 #### 3. GET /preferences/options
 
@@ -296,7 +343,11 @@ GET /resource?cursor=<opaque>&limit=20
 }
 ```
 
-现有选项列表硬编码在前端常量中。改为接口下发后，新增忌口项属后端数据变更，无需发版。前端应在启动时拉取一次并缓存。
+现有选项列表硬编码在前端常量中。改为接口下发后，新增忌口项属后端数据变更，无需发版。
+
+**缓存策略：每次启动拉取一次，内存缓存，不落盘。** 这样既避免每次进设置页都请求，
+也不会因为持久化缓存让新选项在客户端长期不出现 —— 落盘缓存会让「无需发版」这个卖点失效。
+响应体积很小，每次启动拉一次的代价可以忽略。
 
 ### B. 菜谱推荐
 
@@ -307,6 +358,9 @@ GET /resource?cursor=<opaque>&limit=20
 ```
 
 **请求不携带任何偏好参数。** 偏好已存储在服务端，由后端读取并计算推荐。前端传入偏好参数会被忽略。
+
+排序键为 `(匹配人群数 DESC, id ASC)`。偏好变更后此前签发的 `cursor` 失效，
+前端必须丢弃并从头请求；携带过期游标会返回 `400 INVALID_PARAMETER`。
 
 ### C. AI 识别
 
@@ -375,7 +429,8 @@ GET /resource?cursor=<opaque>&limit=20
     "carbsPercent": 50,
     "proteinPercent": 25,
     "fatPercent": 25
-  }
+  },
+  "estimatedRatio": 0.2
 }
 ```
 
@@ -384,6 +439,9 @@ GET /resource?cursor=<opaque>&limit=20
 - `dailyCalories` 必须补齐范围内每一天，无记录的日期返回 0，不得跳过。前端柱状图按数组下标取日期标签，数量不匹配会导致数组越界。
 - `todayCalories` 由后端按用户 timezone 计算，不由前端从日期串推导。时区跨日边界是最易出错的位置。
 - 「本周平均」由前端从 `dailyCalories` 自行计算，接口不提供。
+- `estimatedRatio`（0–1）表示这一份聚合里，营养数据来自模型估算的比例。
+  识别接口用 `nutritionSource` 区分可信与估算，但聚合会把两种来源混在一起 ——
+  没有这个字段，前端就无法再提示「含估算数据」，该提示逻辑会在聚合层静默失效。
 - `from` / `to` 可省略，省略时默认返回「今天往前 13 天」共 14 天，与前端现有图表一致。
 
 #### 7. GET /stats/records?cursor=&limit=
@@ -439,34 +497,65 @@ PUT    /users/{id}/follow   → 200 {"following": true}
 DELETE /users/{id}/follow   → 200 {"following": false}
 ```
 
+### F. 删除类端点
+
+设置页的「数据管理」需要清除数据，以下是配套接口。
+
+#### 12. DELETE /stats/records
+
+清除当前用户的**全部**饮食记录，返回 `204`，无响应体。
+
+#### 13. DELETE /posts/{id}
+
+删除自己的帖子，返回 `204`。删除他人帖子返回 `403 FORBIDDEN`，帖子不存在返回 `404 POST_NOT_FOUND`。
+
+**本期不做：** 评论相关端点（评论数据模型尚未定义），因此「我的发言」也一并推迟到评论模型落地之后。
+
 ## 前端改造清单
 
 ### 需要新增
 
-- 网络层 —— 目前完全不存在。需要 dio 实例、base URL 配置、注入 Authorization 的请求拦截器、解析 error 结构的响应拦截器。
+- 网络层 —— 需要 dio 实例、base URL 配置、注入 Authorization 的请求拦截器、解析 error 结构的响应拦截器。
 - 超时配置 —— 全局 10 秒；POST /recognitions 单独 30 秒。
 - 相对时间格式化工具 —— 由 createdAt 计算「刚刚 / 1小时前」。
-- 枚举 label 映射表 —— 英文码 → 中文显示文案。
+- 枚举 label 映射表 —— 英文码 → 中文显示文案，扩展到 `lib/l10n/enum_labels.dart`。
+  需覆盖三组服务端下发枚举（dietMode / crowds / avoidFoods）与三组闭集
+  （freshness / nutritionSource / MealRecord.source），边界见「枚举编码」一节。
+- **开发期 token 注入** —— 用 `--dart-define=API_TOKEN=dev-token-user-1` 编译期注入，
+  token 不落盘。建议在 `.vscode/launch.json` 配三个启动项，分别对应三个测试用户。
+  后端另支持 `X-Debug-Token` 请求头覆盖，**仅当后端 APP_ENV=development 时生效**，
+  可用于在设置页做运行时切换用户，免重启。
 
 ### 逐文件改动
 
 | 文件 | 改动 |
 |---|---|
-| lib/models/user_preferences.dart | 枚举值改英文码；删除 crowdOptions / avoidOptions 常量，改从 /preferences/options 获取 |
-| lib/providers/preference_provider.dart | 由本地 StateNotifier 改为异步 provider，读走 /me、写走 PUT /me/preferences |
-| lib/features/cooking/screens/cooking_screen.dart | 删除 mockRecipes 与整段本地 filter/sort 逻辑；userName 改从 /me 获取；拍照 onTap 接入 image_picker 并调用 POST /recognitions。_getGreeting() 为纯前端逻辑，保留 |
-| lib/features/cooking/widgets/preference_modal.dart | 选项改从接口获取；保存改调 PUT；成功后触发推荐重新拉取；补充 loading 与失败提示 |
-| lib/features/community/models/post.dart | 字段重构，见 Post 模型 |
-| lib/features/community/screens/community_screen.dart | 删除 _posts 假数据；「关注」tab 改为请求 feed=following；点赞/关注改调接口并实现乐观更新与失败回滚；发帖改用服务端返回 id |
+| lib/features/cooking/data/mock_recipes.dart | **整个文件删除** —— 菜谱数据改由 GET /recipes/recommend 提供 |
+| lib/features/cooking/services/recipe_recommender.dart | **整个文件删除** —— 推荐逻辑已迁到服务端（决策 #2）。这个文件连同它那份测试一并移除 |
+| lib/features/cooking/models/recipe.dart | 加 fromJson；补 calories / nutrition 字段，cookTimeMinutes 由字符串改数字，补 isVegetarian 与 imageUrl |
+| lib/models/user_preferences.dart | 枚举值改英文码；删除 crowdOptions / avoidOptions 常量，改从 GET /preferences/options 获取 |
+| lib/core/storage/preference_storage.dart | 偏好改为服务端存储后本文件角色要重定 —— 要么删除，要么降级为「离线只读缓存」。契约规定 PUT /me/preferences 是唯一写入口 |
+| lib/providers/preference_provider.dart | 由本地 StateNotifier 改为异步 provider，读走 GET /me、写走 PUT /me/preferences |
+| lib/features/cooking/screens/cooking_screen.dart | userName 改从 GET /me 获取；拍照 onTap 接入 image_picker 并调用 POST /recognitions；推荐列表改调接口 |
+| lib/features/cooking/widgets/preference_modal.dart | 选项改从接口获取；保存改调 PUT；成功后**重新拉推荐并丢弃游标**；补 loading 与失败重试（见中间态约定） |
+| lib/features/community/models/post.dart | 字段重构，见 Post 模型；author 收拢为对象，新增 tags 数组 |
+| lib/features/community/screens/community_screen.dart | 删除 _posts 假数据；**TabController 由 length: 3 改为 2**（决策 #5 砍掉同城，这处遗漏了）；「关注」tab 改为请求 feed=following；点赞/关注改调接口并实现乐观更新与失败回滚；发帖改用服务端返回 id |
 | lib/features/community/screens/create_post_screen.dart | _submitPost 由 Navigator.pop 回传 Map 改为调用 POST /posts；图片选择接入 image_picker |
-| lib/features/community/widgets/post_card.dart | 字段名跟随模型改动；time 改为相对时间格式化 |
-| lib/features/statistics/screens/statistics_screen.dart | 删除四组假常量；改拉 /stats/summary 与 /stats/records；顶栏写死的「2026年9月」改为动态 |
-| lib/features/settings/screens/settings_screen.dart | 空壳页面，本期不改动 |
+| lib/features/community/widgets/post_card.dart | 字段名跟随模型改动（likes→likeCount、isLiked→likedByMe）；time 改为由 createdAt 计算的相对时间 |
+| lib/features/statistics/screens/statistics_screen.dart | 删除四组假常量；改拉 GET /stats/summary 与 GET /stats/records；顶栏写死的「2026年9月」改为动态；依据 estimatedRatio 展示「含估算数据」提示 |
+| lib/features/settings/screens/data_management_screen.dart | 「清除」目前是占位，接上 DELETE /stats/records 与 DELETE /posts/{id} |
+| lib/l10n/enum_labels.dart | 扩展 label 映射，覆盖服务端下发枚举与闭集枚举 |
+| lib/core/utils/greeting.dart | 已重构为返回 DayPart 枚举、与语言解耦，**不需要改动** |
+| lib/features/settings/** 其余 | 本地设置类功能，与接口无关，本期不改动 |
 
-### 两项清理
+### 两条旧说明已撤回
 
-- test/widget_test.dart 已失效。当前执行 flutter test 必然失败：测试未包裹 ProviderScope 抛出 Bad state: No ProviderScope found，且断言的是 flutter create 模板遗留的计数器。接入接口前应先删除或重写。
-- pubspec.lock 当前处于被修改状态（镜像源由 pub.dev 改为 pub.flutter-io.cn，且 clock、meta、vector_math、test_api、matcher、stack_trace、platform 等包被降级）。协作场景下该文件易产生冲突，应尽早确认基准。
+- ~~test/widget_test.dart 已失效，接入接口前应先删除或重写~~ —— **撤回。**
+  前端已重写该文件，连同新增测试共 49 个用例全过，是接入接口期间的回归网。不要删。
+- ~~pubspec.lock 处于被修改状态~~ —— **已解决。** 根因是开发机把 `PUB_HOSTED_URL`
+  指向了国内镜像，而镜像的包版本滞后于 pub.dev，导致同一份 pubspec.yaml 在两边解析出
+  不同版本（实测差异 85 行 vs 4 行）。已改为直连 pub.dev，lock 与前端侧对齐。
+  另：开发机 Flutter 已由 3.41.4 升到 3.47.2，与项目 .metadata 记录的 revision 一致。
 
 ## 分期计划
 
@@ -496,7 +585,9 @@ DELETE /users/{id}/follow   → 200 {"following": false}
 
 ## 未决事项
 
-- 菜谱库的具体来源与录入方式未定。
+- **菜谱库的权威来源。** Phase 0 会先交付一份 12 条的种子菜谱库（含热量与营养比例），
+  但**营养数值是演示用的估值，不是营养学准确数据**，上线前必须替换为可靠来源。
+  这份种子数据足以让接口 4 与接口 5 的联调先跑起来，不再阻塞前端。
 - 生产环境鉴权方案（手机号/第三方登录）未定，本期仅使用测试 token。
 
 ---
@@ -516,12 +607,20 @@ DELETE /users/{id}/follow   → 200 {"following": false}
 用户选了多项时渲染哪一个？契约没有写。
 → 需要明确规则（取第一个？还是用户表另立「主标签」？）
 
+> **处置：已采纳。** 改为 `author.tags` **数组**，后端不做「取第一个」这类武断截断。
+> 前端渲染 `tags.first`，为空则不渲染标签。见「Post」模型。
+
 **2. `/stats/records` 的游标分页缺少唯一排序键 —— 会导致翻页重复或漏记录**
 
 `MealRecord` 只有 `date`（`"2026-09-20"`，天粒度）和 `id`，**没有 `createdAt`**。
 同一天记三餐就是三条 `date` 完全相同的记录。游标分页要求稳定的全序，
 只按 `date` 排序时同日记录的先后顺序未定义。
 → 建议加 `createdAt`，排序键用 `(date DESC, id DESC)`
+
+> **处置：已采纳，排序键略作调整。** `MealRecord` 加 `createdAt`。
+> 排序键定为 `(createdAt DESC, id DESC)` 而非 `(date DESC, id DESC)` ——
+> `date` 与 `createdAt` 在本场景下同序，但直接用 `createdAt` 更直接，
+> 且能与 `/posts` 共用同一条排序约定。见「分页」一节。
 
 **3. 图片大小上限没有定义，但前端必须知道才能实现**
 
@@ -530,11 +629,18 @@ DELETE /users/{id}/follow   → 200 {"following": false}
 否则用户在移动网络传原图会撞 30 秒超时。
 → 需要一个明确数字（建议 5MB）
 
+> **处置：已采纳，取值 5 MB。** 格式限定 jpg / jpeg / png / webp。见「上传限制」一节。
+
 **4. 三个固定 token 有了，但前端开发期怎么切换没说**
 
 契约说明了多发 token 是为了验证关注流。但前端没有登录界面 ——
 开发期改代码常量、重编译一次切一个用户，不现实。另外 token 存哪也没说。
 → 需要定一个方案（debug 面板 / 环境变量 / 构建参数）
+
+> **处置：已采纳。** 用构建参数：`--dart-define=API_TOKEN=...`，token 不落盘，
+> 建议配三个 .vscode/launch.json 启动项。另外后端会支持 `X-Debug-Token` 请求头覆盖，
+> **仅当后端 APP_ENV=development 时生效** —— 这样若前端想做成设置页里的运行时切换，
+> 不必重编译。见「前端改造清单 · 需要新增」。
 
 ### 🟡 影响功能完整性
 
@@ -545,6 +651,10 @@ DELETE /users/{id}/follow   → 200 {"following": false}
 有多少来自估算 —— 提示逻辑直接失效。
 → 聚合时带 `estimatedRatio`，或明确说明聚合只统计 `recipe` 来源
 
+> **处置：已采纳，取第一种做法。** `/stats/summary` 返回 `estimatedRatio`（0–1）。
+> 这条指出了原契约的一处自相矛盾：接口 5 用 `nutritionSource` 区分来源，
+> 聚合时却把这个区分丢掉了，前端提示逻辑会在聚合层静默失效。见接口 6。
+
 **6. 枚举 label 映射表不完整**
 
 契约要求前端新增「英文码 → 中文文案」映射，但只覆盖了
@@ -554,10 +664,16 @@ DELETE /users/{id}/follow   → 200 {"following": false}
 - `nutritionSource`: `recipe` / `estimated`
 - `MealRecord.source`: `recognition`
 
+> **处置：已采纳，但划清了边界。** 这三组是**闭集**，不随数据变化，
+> 因此不进 `/preferences/options`，而是写进前端本地的 label 映射表。
+> 服务端只下发会增删的那三组（dietMode / crowds / avoidFoods）。见「枚举编码」一节。
+
 **7. `MealRecord` 建议加可空的 `recipeId`**
 
 现在只有 `recipeName`，将来「从历史记录点进菜谱详情」做不到。
 加字段成本几乎为零；等要用了再改就要动表。
+
+> **处置：已采纳。** `MealRecord` 加可空 `recipeId`。见「MealRecord」模型。
 
 ### 🟢 建议补充的约定
 
@@ -566,17 +682,25 @@ DELETE /users/{id}/follow   → 200 {"following": false}
 `/recipes/recommend` 是服务端按当前偏好算出的排序。翻页中途改偏好，游标就失效了。
 契约已说「保存后必须重新请求」，建议补上「并丢弃游标」。
 
+> **处置：已采纳。** 接口 2 与接口 4 均已写明；携带过期游标返回 `400 INVALID_PARAMETER`。
+
 **9. `PUT /me/preferences` 成功但重拉推荐失败的中间态**
 
 两段式流程（保存 → 重新拉推荐）的中间失败没有定义。此时前端处于
 「偏好已变、推荐还是旧的」。需要约定：显式报错 + 允许重试，
 而不是静默展示不一致的数据。
 
+> **处置：已采纳。** 已写进接口 2 的「中间态约定」：必须显式报错并提供重试入口。
+
 **10. `/preferences/options` 的缓存策略与「无需发版」有张力**
 
 契约说选项下发的价值是「新增忌口项无需发版」，同时又说「前端应在启动时拉取一次并缓存」。
 但缓存恰恰会让新选项在客户端不出现，反而需要发版或加过期策略。
 → 建议明确缓存策略（每次启动拉、不落盘？还是设 TTL？）
+
+> **处置：已采纳，取「每次启动拉取一次，内存缓存，不落盘」。** 这条指出了原文的自相矛盾：
+> 一边说下发选项是为了「无需发版」，一边又说启动时缓存 —— 落盘缓存恰恰会让新选项
+> 在客户端长期不出现，把那个卖点抵消掉。见接口 3。
 
 ## 二、需要后端补充的接口
 
@@ -586,6 +710,9 @@ DELETE /users/{id}/follow   → 200 {"following": false}
 - `DELETE /stats/records` —— 清除饮食记录
 - `DELETE /posts/{id}` —— 删除自己的帖子
 - 以及「我的发言」对应的接口（取决于评论数据模型，本期契约未定义）
+
+> **处置：已采纳前两条。** 新增接口 12 `DELETE /stats/records` 与接口 13 `DELETE /posts/{id}`。
+> 「我的发言」依赖尚未定义的评论模型，一并推迟 —— 本期不做评论，只保留 `commentCount`。
 
 ## 三、需要后端知悉的前端约束
 
@@ -610,12 +737,19 @@ mock 菜谱的标签必须字面相等才匹配得上）。
    已经过时 —— 前端已重写，目前连同新增测试共 48 个用例全过。接入接口期间
    它是回归网。
 
+> **处置：已采纳。** 原契约里「应删除该文件」的建议已撤回，见「两条旧说明已撤回」。
+
 4. **契约里描述前端现状的几处已过时**（写文档时的快照早于前端改动）：
    - 「shared_preferences 零引用」→ 已用于本地持久化
    - 「全项目没有任何 fromJson / toJson」→ 已有
    - 「逐文件改动」表基于旧文件树，遗漏了 `features/cooking/` 下新增的
      `data/`、`models/`、`services/` 三层
    - 社区 `TabController(length: 3)` 需改为 2（决策 #5 已砍掉同城，文档漏了这处 UI 改动）
+
+> **处置：已采纳。** 「前端改造清单」已按合并后的真实文件树重写，
+> 并补上了 `TabController` 这处遗漏；`features/cooking/` 下新增的
+> `data/` / `models/` / `services/` 三层也已反映（其中前两层中 `data/` 与
+> `services/recipe_recommender.dart` 属于要**删除**的文件）。
 
 ## 五、想确认的一件事
 
