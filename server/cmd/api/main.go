@@ -13,8 +13,10 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 
+	"github.com/good-winter/cookingapp/server/internal/api"
 	"github.com/good-winter/cookingapp/server/internal/config"
 	"github.com/good-winter/cookingapp/server/internal/db"
+	"github.com/good-winter/cookingapp/server/internal/store"
 )
 
 func main() {
@@ -41,13 +43,15 @@ func main() {
 	if !cfg.IsDevelopment() {
 		gin.SetMode(gin.ReleaseMode)
 	}
-	r := gin.New()
-	r.Use(gin.Recovery())
-	r.GET("/healthz", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"status": "ok"})
-	})
 
-	srv := &http.Server{Addr: cfg.Addr, Handler: r}
+	handler := &api.Handler{
+		Users:   store.NewMySQLUserStore(conn),
+		Tokens:  store.NewMySQLUserStore(conn),
+		Options: store.NewMySQLOptionsStore(conn),
+		Recipes: store.NewMySQLRecipeStore(conn),
+	}
+
+	srv := &http.Server{Addr: cfg.Addr, Handler: api.NewRouter(cfg, handler)}
 
 	go func() {
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
