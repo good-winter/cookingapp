@@ -102,10 +102,12 @@ func (s *MySQLUserStore) UpdatePreferences(
 	// 提交成功后 Rollback 返回 ErrTxDone，此处可安全忽略。
 	defer tx.Rollback() //nolint:errcheck
 
+	// 不用 VALUES(diet_mode) 自引用：该写法自 MySQL 8.0.20 起被弃用。
+	// 值本来就在手上，再传一次即可，且对各版本 MySQL 都成立。
 	if _, err := tx.ExecContext(ctx,
 		`INSERT INTO user_preferences (user_id, diet_mode) VALUES (?, ?)
-		 ON DUPLICATE KEY UPDATE diet_mode = VALUES(diet_mode)`,
-		userID, prefs.DietMode); err != nil {
+		 ON DUPLICATE KEY UPDATE diet_mode = ?`,
+		userID, prefs.DietMode, prefs.DietMode); err != nil {
 		return fmt.Errorf("写入偏好失败: %w", err)
 	}
 

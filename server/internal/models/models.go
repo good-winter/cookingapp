@@ -14,14 +14,35 @@ type Preferences struct {
 	AvoidFoods []string `json:"avoidFoods"`
 }
 
-// NewPreferences 保证数组字段非 nil——nil slice 会序列化成 null，
-// 而契约要求空数组输出 []。
+// NewPreferences 规整调用方传来的偏好，做两件事：
+//
+//  1. 保证数组字段非 nil——nil slice 会序列化成 null，而契约要求空数组输出 []。
+//  2. 去重。两个数组在语义上是集合（库里 user_preference_crowds 的主键就是
+//     (user_id, crowd)），重复值会撞主键让整个 PUT 事务失败并冒成 500。
+//     在这里收口，比让每个调用方各自记得去重更可靠。
+//
+// 去重同时保证了「回显的偏好」与「落库的偏好」逐项一致——顺序保留首次出现，
+// 前端不必重排。
 func NewPreferences(dietMode string, crowds, avoidFoods []string) Preferences {
 	return Preferences{
 		DietMode:   dietMode,
-		Crowds:     orEmpty(crowds),
-		AvoidFoods: orEmpty(avoidFoods),
+		Crowds:     dedupe(crowds),
+		AvoidFoods: dedupe(avoidFoods),
 	}
+}
+
+// dedupe 去重并保持首次出现的顺序；nil 输入返回空切片而非 nil。
+func dedupe(values []string) []string {
+	out := make([]string, 0, len(values))
+	seen := make(map[string]struct{}, len(values))
+	for _, v := range values {
+		if _, dup := seen[v]; dup {
+			continue
+		}
+		seen[v] = struct{}{}
+		out = append(out, v)
+	}
+	return out
 }
 
 type Nutrition struct {
@@ -68,13 +89,6 @@ func (o PreferenceOptions) Normalized() PreferenceOptions {
 func orEmptyOptions(s []Option) []Option {
 	if s == nil {
 		return []Option{}
-	}
-	return s
-}
-
-func orEmpty(s []string) []string {
-	if s == nil {
-		return []string{}
 	}
 	return s
 }

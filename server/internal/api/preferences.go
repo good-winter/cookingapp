@@ -18,11 +18,28 @@ type preferencesRequest struct {
 	AvoidFoods []string `json:"avoidFoods"`
 }
 
+// maxPreferencesBodyBytes 偏好请求体上限。三个数组合计最多几十个短枚举值，
+// 正常请求在 1 KiB 以内，64 KiB 是量级上的宽裕值。
+const maxPreferencesBodyBytes = 64 << 10
+
 // PutPreferences 是全量替换语义（与 PUT 契约一致）：
 // 未提交的旧值会被清除，而不是保留。
 func (h *Handler) PutPreferences(c *gin.Context) {
+	// 不加限制时 ShouldBindJSON 会一直读到客户端声称的长度为止，
+	// 一个超大 body 就能白占住内存。gin 默认不设上限。
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxPreferencesBodyBytes)
+
 	var req preferencesRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
+		// 超限与格式错误的成因不同，分开报，别让调用方去猜。
+		// 用 400 INVALID_PARAMETER 而不是新增 413：契约里 413 专指上传图片过大，
+		// 为 JSON 请求体另立一组状态码/错误码配对会越过契约。
+		var tooLarge *http.MaxBytesError
+		if errors.As(err, &tooLarge) {
+			httputil.Abort(c, http.StatusBadRequest, httputil.CodeInvalidParameter,
+				"请求体过大", nil)
+			return
+		}
 		httputil.Abort(c, http.StatusBadRequest, httputil.CodeInvalidParameter,
 			"请求体不是合法 JSON", nil)
 		return

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -119,6 +120,81 @@ func TestRecommendRejectsBadCursor(t *testing.T) {
 	code, body := getRecommend(t, "?cursor=这不是游标")
 	if code != http.StatusBadRequest || !contains(body, "INVALID_PARAMETER") {
 		t.Fatalf("非法游标应返回 400，实际 %d %s", code, body)
+	}
+}
+
+// 契约（接口 2 / 接口 4）两处写明：偏好变更后携带过期游标必须返回
+// 400 INVALID_PARAMETER。前端若忘了丢游标，要在这里响亮地失败，
+// 而不是拿到一份「新排序 + 旧位置」拼出来的、静默错乱的序列。
+//
+// 这条用例必须让两次请求打到同一个 router，才能真的走完
+// 「改偏好 → 用旧游标翻页」这条路径。
+func TestRecommendRejectsStaleCursorAfterPreferenceChange(t *testing.T) {
+	users := fakeUsers{user: map[string]models.User{
+		"u_1": {ID: "u_1", Preferences: models.NewPreferences("normal", nil, nil)},
+	}}
+	r := testRouterWith(&Handler{
+		Users:  users,
+		Tokens: fakeTokens{valid: map[string]string{"t": "u_1"}},
+		Recipes: fakeRecipes{recipes: []models.Recipe{
+			{ID: "r_1", IsVegetarian: true, Crowds: []string{}, AvoidTags: []string{}},
+			{ID: "r_2", IsVegetarian: true, Crowds: []string{"fitness"}, AvoidTags: []string{}},
+			{ID: "r_3", IsVegetarian: true, Crowds: []string{}, AvoidTags: []string{}},
+		}},
+	})
+
+	// 第一页：旧偏好下拿到一个游标。
+	w := getWithToken(t, r, "/api/v1/recipes/recommend?limit=1", "t")
+	var first struct {
+		Items      []models.Recipe `json:"items"`
+		NextCursor *string         `json:"nextCursor"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &first); err != nil {
+		t.Fatalf("解析第一页失败: %v", err)
+	}
+	if first.NextCursor == nil {
+		t.Fatalf("第一页应带 nextCursor，实际 body=%s", w.Body.String())
+	}
+
+	// 改偏好 —— 按契约，此前签发的游标就此失效。
+	if err := users.UpdatePreferences(context.Background(), "u_1",
+		models.NewPreferences("normal", []string{"fitness"}, nil)); err != nil {
+		t.Fatalf("更新偏好失败: %v", err)
+	}
+
+	path := "/api/v1/recipes/recommend?limit=1&cursor=" + url.QueryEscape(*first.NextCursor)
+	stale := getWithToken(t, r, path, "t")
+	if stale.Code != http.StatusBadRequest {
+		t.Fatalf("偏好变更后旧游标应返回 400，实际 %d，body=%s",
+			stale.Code, stale.Body.String())
+	}
+	if !contains(stale.Body.String(), "INVALID_PARAMETER") {
+		t.Fatalf("错误码应为 INVALID_PARAMETER，实际 %s", stale.Body.String())
+	}
+}
+
+// 偏好没变时游标照常可用。这条与上一条成对：只测「该拒的拒了」不够，
+// 还得保证没有把正常翻页一起误杀。
+func TestRecommendStillPaginatesWhenPreferenceUnchanged(t *testing.T) {
+	r := newRecipesRouter()
+
+	first := getWithToken(t, r, "/api/v1/recipes/recommend?limit=1", "t")
+	if first.Code != http.StatusOK {
+		t.Fatalf("期望 200，实际 %d", first.Code)
+	}
+	var page struct {
+		NextCursor *string `json:"nextCursor"`
+	}
+	if err := json.Unmarshal(first.Body.Bytes(), &page); err != nil || page.NextCursor == nil {
+		t.Fatalf("第一页应带 nextCursor: err=%v body=%s", err, first.Body.String())
+	}
+
+	// 同一个 router、同一份偏好，游标必须仍然有效。
+	second := getWithToken(t, r,
+		"/api/v1/recipes/recommend?limit=1&cursor="+url.QueryEscape(*page.NextCursor), "t")
+	if second.Code != http.StatusOK {
+		t.Fatalf("偏好未变时游标应继续可用，实际 %d，body=%s",
+			second.Code, second.Body.String())
 	}
 }
 

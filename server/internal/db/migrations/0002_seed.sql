@@ -1,16 +1,25 @@
+-- 本文件全部使用 INSERT IGNORE，使其可重复执行。
+--
+-- 背景：migrate.go 是「先执行 SQL、后记录文件名」，两步之间进程若挂掉，
+-- 下次启动会重跑整份文件。0001 的建表都带 IF NOT EXISTS 因而天然幂等，
+-- 这里若用裸 INSERT，重跑会撞主键报错 → log.Fatalf → 服务再也起不来。
+--
+-- 刻意不用 ON DUPLICATE KEY UPDATE：种子数据的期望是「已存在就保持现状」，
+-- 不做隐式覆盖，以免改坏手工调整过的数据。
+
 -- 选项字典。新增选项只需在此表加行，前端无需发版。
-INSERT INTO diet_modes (code, label, sort_order) VALUES
+INSERT IGNORE INTOdiet_modes (code, label, sort_order) VALUES
   ('normal',     '正常人',   1),
   ('vegetarian', '素食主义', 2);
 
-INSERT INTO crowds (code, label, sort_order) VALUES
+INSERT IGNORE INTOcrowds (code, label, sort_order) VALUES
   ('pregnant', '孕妇',     1),
   ('student',  '学生',     2),
   ('fitness',  '健身人群', 3),
   ('elderly',  '老人',     4),
   ('athlete',  '运动员',   5);
 
-INSERT INTO avoid_foods (code, label, sort_order) VALUES
+INSERT IGNORE INTOavoid_foods (code, label, sort_order) VALUES
   ('pork',     '猪肉', 1),
   ('beef',     '牛肉', 2),
   ('seafood',  '海鲜', 3),
@@ -18,22 +27,22 @@ INSERT INTO avoid_foods (code, label, sort_order) VALUES
   ('spicy',    '辛辣', 5);
 
 -- 测试用户。头像用文字代替图片。timezone 决定统计的自然日切分。
-INSERT INTO users (id, nickname, avatar_text, timezone) VALUES
+INSERT IGNORE INTOusers (id, nickname, avatar_text, timezone) VALUES
   ('u_1', '美食家',   '美', 'Asia/Shanghai'),
   ('u_2', '健身狂人B', '健', 'Asia/Shanghai'),
   ('u_3', '厨房小白C', '厨', 'Asia/Shanghai');
 
-INSERT INTO user_preferences (user_id, diet_mode) VALUES
+INSERT IGNORE INTOuser_preferences (user_id, diet_mode) VALUES
   ('u_1', 'normal'),
   ('u_2', 'normal'),
   ('u_3', 'normal');
 
-INSERT INTO user_preference_crowds (user_id, crowd) VALUES
+INSERT IGNORE INTOuser_preference_crowds (user_id, crowd) VALUES
   ('u_2', 'fitness'),
   ('u_3', 'student');
 
 -- 开发期 token。多个 token 是为了让前端能验证关注流（关注是用户之间的动作）。
-INSERT INTO api_tokens (token, user_id) VALUES
+INSERT IGNORE INTOapi_tokens (token, user_id) VALUES
   ('dev-token-user-1', 'u_1'),
   ('dev-token-user-2', 'u_2'),
   ('dev-token-user-3', 'u_3');
@@ -41,7 +50,7 @@ INSERT INTO api_tokens (token, user_id) VALUES
 -- 菜谱库。营养数据是统计与自动入账的数据源。
 -- ⚠️ 以下热量与营养比例为演示用估值，不是营养学准确数据；
 --    上线前必须替换为可靠来源（见契约「未决事项」）。
-INSERT INTO recipes
+INSERT IGNORE INTOrecipes
   (id, name, emoji, cook_time_minutes, is_vegetarian, calories,
    carbs_percent, protein_percent, fat_percent) VALUES
   ('r_01', '番茄炒蛋',   '🍲', 10, 1, 180, 50, 25, 25),
@@ -57,7 +66,7 @@ INSERT INTO recipes
   ('r_11', '凉拌黄瓜',   '🥒',  5, 1,  60, 70, 15, 15),
   ('r_12', '西红柿牛腩', '🍅', 90, 0, 380, 25, 35, 40);
 
-INSERT INTO recipe_crowds (recipe_id, crowd) VALUES
+INSERT IGNORE INTOrecipe_crowds (recipe_id, crowd) VALUES
   ('r_01', 'pregnant'), ('r_01', 'student'),
   ('r_03', 'fitness'),  ('r_03', 'athlete'),
   ('r_04', 'elderly'),  ('r_04', 'pregnant'),
@@ -67,7 +76,7 @@ INSERT INTO recipe_crowds (recipe_id, crowd) VALUES
   ('r_09', 'athlete'),
   ('r_11', 'fitness');
 
-INSERT INTO recipe_avoid_tags (recipe_id, avoid_tag) VALUES
+INSERT IGNORE INTOrecipe_avoid_tags (recipe_id, avoid_tag) VALUES
   ('r_02', 'pork'),
   ('r_05', 'pork'), ('r_05', 'spicy'),
   ('r_04', 'seafood'),
@@ -76,7 +85,7 @@ INSERT INTO recipe_avoid_tags (recipe_id, avoid_tag) VALUES
   ('r_12', 'beef');
 
 -- 帖子。created_at 用固定时间而非 NOW()，保证种子数据可复现。
-INSERT INTO posts (id, author_id, content, image_emoji, like_count, comment_count, created_at) VALUES
+INSERT IGNORE INTOposts (id, author_id, content, image_emoji, like_count, comment_count, created_at) VALUES
   ('p_01', 'u_2',
    '今天用App的AI识别挑的西红柿，做的番茄炒蛋太香了！AI提示我孕妇要少吃某种香料，真的帮了大忙。',
    '🍲', 128, 45, '2026-09-21 12:00:00'),
@@ -87,10 +96,10 @@ INSERT INTO posts (id, author_id, content, image_emoji, like_count, comment_coun
    '跟着沉浸式做饭模式一步一步来，居然没翻车！语音播报太适合我这种手忙脚乱的人了。',
    '🍳', 56, 23, '2026-09-21 10:00:00');
 
-INSERT INTO post_hashtags (post_id, hashtag) VALUES
+INSERT IGNORE INTOpost_hashtags (post_id, hashtag) VALUES
   ('p_01', '孕妇餐'),    ('p_01', '快手菜'),     ('p_01', '番茄炒蛋'),
   ('p_02', '减脂餐'),    ('p_02', '低卡'),       ('p_02', '健身'),
   ('p_03', '学生党'),    ('p_03', '新手做饭'),   ('p_03', '沉浸式做饭');
 
 -- u_1 关注 u_2，让「关注」feed 一开始就有内容可验证。
-INSERT INTO follows (follower_id, followee_id) VALUES ('u_1', 'u_2');
+INSERT IGNORE INTOfollows (follower_id, followee_id) VALUES ('u_1', 'u_2');

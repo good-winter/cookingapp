@@ -16,13 +16,19 @@ const ContextUserID = "userID"
 
 // Auth 解析 token 并注入当前用户 ID。
 //
-// allowDebugHeader 为 true 时额外接受 X-Debug-Token，用于开发期在设置页里
-// 运行时切换用户而不必重编译。Authorization 头优先，避免调试头意外覆盖真实身份。
+// allowDebugHeader 为 true 时（即 APP_ENV=development）X-Debug-Token 会**覆盖**
+// Authorization，用于在设置页里运行时切换用户而不必重编译——这是契约对前端的承诺。
+//
+// 之所以必须是「覆盖」而不是「Authorization 缺失时的替代」：前端会装一个给每个
+// 请求注入 Authorization 的拦截器，永远不会有缺失的时候，调试头若只在缺失时生效
+// 就等于永不生效。生产环境下 allowDebugHeader 恒为 false，不存在被顶替的风险。
 func Auth(tokens store.TokenStore, allowDebugHeader bool) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		token := bearerToken(c.GetHeader("Authorization"))
-		if token == "" && allowDebugHeader {
-			token = strings.TrimSpace(c.GetHeader("X-Debug-Token"))
+		if allowDebugHeader {
+			if debug := strings.TrimSpace(c.GetHeader("X-Debug-Token")); debug != "" {
+				token = debug
+			}
 		}
 		if token == "" {
 			httputil.Abort(c, http.StatusUnauthorized, httputil.CodeUnauthorized,

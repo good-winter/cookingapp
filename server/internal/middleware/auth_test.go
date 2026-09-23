@@ -125,8 +125,10 @@ func TestAuthDebugHeaderIgnoredOutsideDevelopment(t *testing.T) {
 	}
 }
 
-// Authorization 头优先于 X-Debug-Token，避免调试头意外覆盖真实身份。
-func TestAuthPrefersAuthorizationOverDebugHeader(t *testing.T) {
+// 契约（前端改造清单）承诺 X-Debug-Token 可用于设置页运行时切换用户。
+// 前端会给每个请求注入 Authorization，所以调试头必须能**覆盖**它——
+// 若只在其缺失时生效，该承诺等于永不生效。
+func TestAuthDebugHeaderOverridesAuthorizationInDevelopment(t *testing.T) {
 	r := newTestRouter(fakeTokens{valid: map[string]string{
 		"real": "u_1",
 		"dbg":  "u_2",
@@ -135,8 +137,21 @@ func TestAuthPrefersAuthorizationOverDebugHeader(t *testing.T) {
 		"Authorization": "Bearer real",
 		"X-Debug-Token": "dbg",
 	})
+	if code != http.StatusOK || got != "u_2" {
+		t.Fatalf("开发期 X-Debug-Token 应覆盖 Authorization，实际 %d + %q", code, got)
+	}
+}
+
+// 调试头为空串不算「覆盖」，此时应正常回落到 Authorization，
+// 否则前端清空切换开关时会连带把自己踢成未认证。
+func TestAuthEmptyDebugHeaderFallsBackToAuthorization(t *testing.T) {
+	r := newTestRouter(fakeTokens{valid: map[string]string{"real": "u_1"}}, true)
+	code, got := do(t, r, map[string]string{
+		"Authorization": "Bearer real",
+		"X-Debug-Token": "   ",
+	})
 	if code != http.StatusOK || got != "u_1" {
-		t.Fatalf("应优先用 Authorization，实际 %d + %q", code, got)
+		t.Fatalf("空白调试头应回落到 Authorization，实际 %d + %q", code, got)
 	}
 }
 

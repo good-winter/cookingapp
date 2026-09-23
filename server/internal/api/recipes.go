@@ -56,10 +56,17 @@ func (h *Handler) GetRecommend(c *gin.Context) {
 
 	ranked := recommend.Rank(recipes, prefs)
 
-	items, nextCursor, err := recommend.Page(ranked, limit, c.Query("cursor"))
+	// prefs 一并传入：游标绑定了签发它的那份偏好，偏好变更后旧游标会被拒。
+	items, nextCursor, err := recommend.Page(ranked, limit, c.Query("cursor"), prefs)
+	if errors.Is(err, recommend.ErrStaleCursor) {
+		// 契约接口 2/4：偏好变更后携带过期游标必须回 400，由前端丢弃后重拉。
+		httputil.Abort(c, http.StatusBadRequest, httputil.CodeInvalidParameter,
+			"游标已失效（偏好已变更），请丢弃后重新请求", nil)
+		return
+	}
 	if errors.Is(err, recommend.ErrInvalidCursor) {
 		httputil.Abort(c, http.StatusBadRequest, httputil.CodeInvalidParameter,
-			"游标非法或已失效，请丢弃后重新请求", nil)
+			"游标非法，请丢弃后重新请求", nil)
 		return
 	}
 	if err != nil {
