@@ -1,0 +1,361 @@
+diff --git a/server/.env.example b/server/.env.example
+index c37cf6f..c74dd66 100644
+--- a/server/.env.example
++++ b/server/.env.example
+@@ -9,3 +9,10 @@ APP_AUTO_MIGRATE=true
+ # loc=UTC 表示数据库中的时间一律按 UTC 处理。
+ # multiStatements=true 让迁移文件可以整份执行。
+ APP_DSN=root:你的密码@tcp(127.0.0.1:3306)/cookingapp?parseTime=true&loc=UTC&charset=utf8mb4&multiStatements=true
++
++# CORS 白名单（逗号分隔）。前端是 Flutter web，与 API 不同源 —— 不配这个，
++# 浏览器会在客户端拦掉所有响应，且报错只提 CORS，看不出是后端缺头。
++#
++# 留空时的行为：APP_ENV=development 放行任意源（flutter run 每次分配随机端口，
++# 写死白名单不现实）；其他环境**完全不发** CORS 头，要开放必须显式配置。
++# APP_ALLOWED_ORIGINS=http://localhost:3000,https://your.app
+diff --git a/server/internal/api/cors_test.go b/server/internal/api/cors_test.go
+new file mode 100644
+index 0000000..f55fe90
+--- /dev/null
++++ b/server/internal/api/cors_test.go
+@@ -0,0 +1,72 @@
++package api
++
++import (
++	"net/http"
++	"net/http/httptest"
++	"testing"
++
++	"github.com/good-winter/cookingapp/server/internal/config"
++	"github.com/good-winter/cookingapp/server/internal/models"
++)
++
++// 这条是整个前端接入能否工作的前提：预检请求**不携带 Authorization**
++// （浏览器规范如此），所以它必须能穿过鉴权拿到 204 + CORS 头。若 CORS 被挂在
++// 鉴权之后，预检会先被 401 挡下，浏览器就永远不会发出真实请求 —— 而报错只会
++// 提 CORS，让人以为是后端没配 CORS 头，实际是中间件顺序错了。
++func TestPreflightBypassesAuthAndReturnsCORSHeaders(t *testing.T) {
++	r := NewRouter(config.Config{Env: "development"}, &Handler{
++		Users:  fakeUsers{user: map[string]models.User{}},
++		Tokens: fakeTokens{valid: map[string]string{"t": "u_1"}},
++	})
++
++	req := httptest.NewRequest(http.MethodOptions, "/api/v1/me/preferences", nil)
++	req.Header.Set("Origin", "http://localhost:51234")
++	req.Header.Set("Access-Control-Request-Method", "PUT")
++	req.Header.Set("Access-Control-Request-Headers", "authorization,content-type")
++	w := httptest.NewRecorder()
++	r.ServeHTTP(w, req)
++
++	if w.Code != http.StatusNoContent {
++		t.Fatalf("预检应返回 204；实际 %d。若为 401 说明 CORS 被挂在了 Auth 之后",
++			w.Code)
++	}
++	if got := w.Header().Get("Access-Control-Allow-Origin"); got == "" {
++		t.Fatal("预检响应缺少 Access-Control-Allow-Origin，浏览器会拦下真实请求")
++	}
++}
++
++// 真实请求（带 Origin）的响应也要带 CORS 头，否则浏览器拿到响应也会丢弃。
++func TestActualRequestCarriesCORSHeader(t *testing.T) {
++	r := testRouter(t)
++
++	req := httptest.NewRequest(http.MethodGet, "/api/v1/me", nil)
++	req.Header.Set("Origin", "http://localhost:51234")
++	req.Header.Set("Authorization", "Bearer dev-token-user-1")
++	w := httptest.NewRecorder()
++	r.ServeHTTP(w, req)
++
++	if w.Code != http.StatusOK {
++		t.Fatalf("带 Origin 的真实请求应成功，实际 %d", w.Code)
++	}
++	if got := w.Header().Get("Access-Control-Allow-Origin"); got == "" {
++		t.Fatal("带 Origin 的真实请求响应应含 Access-Control-Allow-Origin")
++	}
++}
++
++// 生产环境（非 development）零配置时不应放行任意源。
++func TestProductionDoesNotAllowAnyOriginByDefault(t *testing.T) {
++	r := NewRouter(config.Config{Env: "production"}, &Handler{
++		Users:  fakeUsers{user: map[string]models.User{}},
++		Tokens: fakeTokens{valid: map[string]string{"t": "u_1"}},
++	})
++
++	req := httptest.NewRequest(http.MethodGet, "/api/v1/me", nil)
++	req.Header.Set("Origin", "http://evil.example.com")
++	req.Header.Set("Authorization", "Bearer t")
++	w := httptest.NewRecorder()
++	r.ServeHTTP(w, req)
++
++	if got := w.Header().Get("Access-Control-Allow-Origin"); got != "" {
++		t.Fatalf("生产环境不应默认放行任意源，实际 %q", got)
++	}
++}
+diff --git a/server/internal/api/router.go b/server/internal/api/router.go
+index b04c665..c3a8812 100644
+--- a/server/internal/api/router.go
++++ b/server/internal/api/router.go
+@@ -11,7 +11,9 @@ import (
+ 
+ func NewRouter(cfg config.Config, h *Handler) *gin.Engine {
+ 	r := gin.New()
+-	r.Use(gin.Recovery())
++	// CORS 挂在鉴权之前：预检请求不带 Authorization，若先过鉴权会被 401 挡下，
++	// 浏览器就永远不会发出真实请求。详见 middleware.CORS 的说明。
++	r.Use(gin.Recovery(), middleware.CORS(cfg.AllowedOrigins, cfg.AllowAnyOrigin()))
+ 	r.GET("/healthz", func(c *gin.Context) {
+ 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
+ 	})
+diff --git a/server/internal/config/config.go b/server/internal/config/config.go
+index 2561a89..7ba36be 100644
+--- a/server/internal/config/config.go
++++ b/server/internal/config/config.go
+@@ -4,6 +4,7 @@ import (
+ 	"fmt"
+ 	"os"
+ 	"strconv"
++	"strings"
+ )
+ 
+ type Config struct {
+@@ -11,13 +12,16 @@ type Config struct {
+ 	DSN         string
+ 	Env         string
+ 	AutoMigrate bool
++	// AllowedOrigins 是 CORS 白名单，来自 APP_ALLOWED_ORIGINS（逗号分隔）。
++	AllowedOrigins []string
+ }
+ 
+ func Load() (Config, error) {
+ 	cfg := Config{
+-		Addr: getenv("APP_ADDR", ":8080"),
+-		Env:  getenv("APP_ENV", "development"),
+-		DSN:  os.Getenv("APP_DSN"),
++		Addr:           getenv("APP_ADDR", ":8080"),
++		Env:            getenv("APP_ENV", "development"),
++		DSN:            os.Getenv("APP_DSN"),
++		AllowedOrigins: splitList(os.Getenv("APP_ALLOWED_ORIGINS")),
+ 	}
+ 
+ 	if cfg.DSN == "" {
+@@ -36,6 +40,28 @@ func Load() (Config, error) {
+ // IsDevelopment 用于决定是否启用 X-Debug-Token 等仅开发期可用的行为。
+ func (c Config) IsDevelopment() bool { return c.Env == "development" }
+ 
++// AllowAnyOrigin 开发期未显式配置白名单时放行任意源。flutter run 每次给 web
++// 应用分配随机端口，写死白名单不现实；生产环境（APP_ENV != development）
++// 默认不加任何 CORS 头，要开放必须显式配置 APP_ALLOWED_ORIGINS。
++func (c Config) AllowAnyOrigin() bool {
++	return len(c.AllowedOrigins) == 0 && c.IsDevelopment()
++}
++
++// splitList 解析逗号分隔的列表，去掉空白项；空串返回 nil。
++func splitList(raw string) []string {
++	if strings.TrimSpace(raw) == "" {
++		return nil
++	}
++	parts := strings.Split(raw, ",")
++	out := make([]string, 0, len(parts))
++	for _, p := range parts {
++		if v := strings.TrimSpace(p); v != "" {
++			out = append(out, v)
++		}
++	}
++	return out
++}
++
+ func getenv(key, fallback string) string {
+ 	if v := os.Getenv(key); v != "" {
+ 		return v
+diff --git a/server/internal/middleware/cors.go b/server/internal/middleware/cors.go
+new file mode 100644
+index 0000000..d51e6e5
+--- /dev/null
++++ b/server/internal/middleware/cors.go
+@@ -0,0 +1,70 @@
++package middleware
++
++import (
++	"net/http"
++	"strings"
++
++	"github.com/gin-gonic/gin"
++)
++
++// CORS 处理浏览器的跨源请求。
++//
++// 为什么必须有：前端是 Flutter web，App 与 API 不同源（App 由 flutter run
++// 起在 localhost 的随机端口，API 在 127.0.0.1:8080）。且每个请求都带
++// Authorization，PUT 还带 Content-Type: application/json —— 两者都会触发
++// 预检。没有本中间件时浏览器会在客户端拦掉响应，且报错只提 CORS，不看后端。
++//
++// 必须挂在鉴权之前：预检请求**不携带 Authorization**（浏览器规范如此），
++// 若先过鉴权会被 401 挡下，浏览器就永远不会发出真实请求。因此这里在预检处
++// 直接终止。
++//
++// allowAny 为 true 时放行任意源（开发期默认），用于适配 flutter run 的随机
++// 端口。此时用 Allow-Origin: * —— 本服务靠 Bearer 头鉴权、不使用 Cookie，
++// 不属于 CORS 的「凭据请求」，所以 * 是安全的。allowed 非空时逐个精确匹配，
++// 并回显实际源。两者都空则完全不加 CORS 头（生产环境的默认姿态）。
++func CORS(allowed []string, allowAny bool) gin.HandlerFunc {
++	enabled := allowAny || len(allowed) > 0
++
++	return func(c *gin.Context) {
++		if !enabled {
++			c.Next()
++			return
++		}
++
++		origin := c.GetHeader("Origin")
++		switch {
++		case origin == "":
++			// 非浏览器请求（curl、服务间调用）没有 Origin，无需 CORS 头。
++		case allowAny:
++			c.Header("Access-Control-Allow-Origin", "*")
++		case containsFold(allowed, origin):
++			c.Header("Access-Control-Allow-Origin", origin)
++			// 精确匹配时响应随 Origin 变化，必须声明，否则中间缓存会串源。
++			c.Header("Vary", "Origin")
++		default:
++			// 不在白名单：不加头，让浏览器自己拦。
++		}
++
++		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
++		c.Header("Access-Control-Allow-Headers",
++			"Authorization, Content-Type, X-Debug-Token")
++		c.Header("Access-Control-Max-Age", "600")
++
++		if c.Request.Method == http.MethodOptions {
++			c.AbortWithStatus(http.StatusNoContent)
++			return
++		}
++		c.Next()
++	}
++}
++
++// containsFold 大小写不敏感地匹配源。Origin 里的主机名大小写不敏感，
++// 但 scheme 必须小写，这里整体折叠比较够用。
++func containsFold(list []string, target string) bool {
++	for _, v := range list {
++		if strings.EqualFold(strings.TrimSpace(v), target) {
++			return true
++		}
++	}
++	return false
++}
+diff --git a/server/internal/middleware/cors_test.go b/server/internal/middleware/cors_test.go
+new file mode 100644
+index 0000000..770df0b
+--- /dev/null
++++ b/server/internal/middleware/cors_test.go
+@@ -0,0 +1,110 @@
++package middleware
++
++import (
++	"net/http"
++	"net/http/httptest"
++	"strings"
++	"testing"
++
++	"github.com/gin-gonic/gin"
++)
++
++func corsRouter(allowed []string, allowAny bool) *gin.Engine {
++	gin.SetMode(gin.TestMode)
++	r := gin.New()
++	r.Use(CORS(allowed, allowAny))
++	r.GET("/probe", func(c *gin.Context) { c.JSON(http.StatusOK, gin.H{"ok": true}) })
++	r.PUT("/probe", func(c *gin.Context) { c.JSON(http.StatusOK, gin.H{"ok": true}) })
++	return r
++}
++
++// doCORS 发一个带（或不带）Origin 的请求。
++func doCORS(r *gin.Engine, method, origin string) *httptest.ResponseRecorder {
++	req := httptest.NewRequest(method, "/probe", nil)
++	if origin != "" {
++		req.Header.Set("Origin", origin)
++	}
++	w := httptest.NewRecorder()
++	r.ServeHTTP(w, req)
++	return w
++}
++
++func TestCORSAllowAnyEmitsWildcard(t *testing.T) {
++	w := doCORS(corsRouter(nil, true), http.MethodGet, "http://localhost:51234")
++	if got := w.Header().Get("Access-Control-Allow-Origin"); got != "*" {
++		t.Fatalf("开发期应放行任意源，期望 *，实际 %q", got)
++	}
++}
++
++// 预检要能拿到 204，且响应里带上允许的方法与头。
++func TestCORSPreflightReturnsNoContent(t *testing.T) {
++	w := doCORS(corsRouter(nil, true), http.MethodOptions, "http://localhost:51234")
++	if w.Code != http.StatusNoContent {
++		t.Fatalf("预检期望 204，实际 %d", w.Code)
++	}
++	if !strings.Contains(w.Header().Get("Access-Control-Allow-Methods"), "PUT") {
++		t.Errorf("Allow-Methods 应含 PUT，实际 %q",
++			w.Header().Get("Access-Control-Allow-Methods"))
++	}
++}
++
++// 前端每个请求都带 Authorization，PUT 还带 Content-Type；两者都会触发预检，
++// 所以这三个头必须在允许列表里，否则浏览器会拦下真实请求。
++func TestCORSAllowsTheHeadersFrontendActuallySends(t *testing.T) {
++	w := doCORS(corsRouter(nil, true), http.MethodPut, "http://localhost:1234")
++	allow := strings.ToLower(w.Header().Get("Access-Control-Allow-Headers"))
++	for _, h := range []string{"authorization", "content-type", "x-debug-token"} {
++		if !strings.Contains(allow, h) {
++			t.Errorf("Allow-Headers 缺少 %s，实际 %q", h, allow)
++		}
++	}
++}
++
++// 非浏览器请求（curl、服务间调用）没有 Origin，不该被加上 CORS 头。
++func TestCORSWithoutOriginEmitsNoAllowOrigin(t *testing.T) {
++	w := doCORS(corsRouter(nil, true), http.MethodGet, "")
++	if got := w.Header().Get("Access-Control-Allow-Origin"); got != "" {
++		t.Fatalf("无 Origin 时不应加 Allow-Origin，实际 %q", got)
++	}
++	if w.Code != http.StatusOK {
++		t.Fatalf("无 Origin 的正常请求应照常通过，实际 %d", w.Code)
++	}
++}
++
++func TestCORSAllowlistEchoesMatchingOrigin(t *testing.T) {
++	r := corsRouter([]string{"http://localhost:3000"}, false)
++
++	w := doCORS(r, http.MethodGet, "http://localhost:3000")
++	if got := w.Header().Get("Access-Control-Allow-Origin"); got != "http://localhost:3000" {
++		t.Fatalf("白名单命中的源应被回显，实际 %q", got)
++	}
++	// 回显式响应随 Origin 变化，必须声明 Vary，否则中间缓存会串源。
++	if !strings.Contains(w.Header().Get("Vary"), "Origin") {
++		t.Errorf("回显 Origin 时必须带 Vary: Origin，实际 %q", w.Header().Get("Vary"))
++	}
++}
++
++func TestCORSAllowlistRejectsOtherOrigins(t *testing.T) {
++	w := doCORS(corsRouter([]string{"http://localhost:3000"}, false),
++		http.MethodGet, "http://evil.example.com")
++	if got := w.Header().Get("Access-Control-Allow-Origin"); got != "" {
++		t.Fatalf("白名单外的源不应放行，实际 %q", got)
++	}
++}
++
++// 生产环境默认零配置即不加任何 CORS 头 —— 要对外开放必须显式配白名单。
++func TestCORSDisabledWhenNoOriginsAndNotAllowAny(t *testing.T) {
++	w := doCORS(corsRouter(nil, false), http.MethodGet, "http://localhost:51888")
++	if got := w.Header().Get("Access-Control-Allow-Origin"); got != "" {
++		t.Fatalf("未配置时应完全不加 CORS 头，实际 %q", got)
++	}
++}
++
++// 允许列表的匹配应忽略大小写与两侧空白，避免因为手写配置里的空格而失效。
++func TestCORSAllowlistToleratesWhitespaceAndCase(t *testing.T) {
++	w := doCORS(corsRouter([]string{" HTTP://LOCALHOST:3000 "}, false),
++		http.MethodGet, "http://localhost:3000")
++	if got := w.Header().Get("Access-Control-Allow-Origin"); got == "" {
++		t.Fatal("应容忍配置项两侧空白与大小写差异")
++	}
++}
