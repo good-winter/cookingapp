@@ -2,28 +2,41 @@
 import 'dart:convert';
 
 import 'package:cooking_app/core/bootstrap.dart';
+import 'package:cooking_app/core/network/cooking_api.dart';
 import 'package:cooking_app/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'fake_cooking_api.dart';
+
 /// 启动 App —— 和执行 `main()` 完全相同的接线方式。
 ///
 /// [stored] 用来预置「本地已保存的数据」，模拟用户上次退出时的状态。
-/// 键用 `PreferenceStorage.storageKey` / `SettingsStorage.storageKey`。
+/// 键用 `SettingsStorage.storageKey`。饮食偏好已迁到服务端，不再走本地存储。
 ///
 /// 因为 main() 和这里都走 `appOverrides()`，测试跑的接线就是线上跑的接线。
+///
+/// [api] 是本轮新增的注入点：界面现在依赖网络，必须能换成替身。
+///
+/// **默认就给一个替身**，而不是让不传的用例去撞真实网络 —— 否则每个用例都会
+/// 隐式依赖「连接被立刻拒绝」这个时序：本机有后端在跑时会真的发请求，没有时
+/// 又要等超时，结果取决于环境而不是被测代码。要定制行为就传自己的 FakeCookingApi。
 Future<void> pumpApp(
   WidgetTester tester, {
   Map<String, Object> stored = const {},
+  CookingApi? api,
 }) async {
   SharedPreferences.setMockInitialValues(stored);
 
   // 必须包 ProviderScope，否则 MyApp 里的 ref.watch 会抛
   // "No ProviderScope found"
   await tester.pumpWidget(
-    ProviderScope(overrides: await appOverrides(), child: const MyApp()),
+    ProviderScope(
+      overrides: await appOverrides(api: api ?? FakeCookingApi()),
+      child: const MyApp(),
+    ),
   );
   await tester.pumpAndSettle();
 }

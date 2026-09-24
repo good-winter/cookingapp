@@ -1,0 +1,39 @@
+{
+  // 契约「开发期 token 注入」要求：token 用编译期 --dart-define 注入，不落盘。
+  // 这里为三个种子用户各配一个启动项，切换测试用户不必改代码。
+  //
+  // 后端需先启动（cd server && go run ./cmd/api），且 APP_ENV=development ——
+  // 该模式下后端会放行 CORS，Flutter web 才能跨源访问它在 8080 上的接口。
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "cooking_app (美食家 u_1)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "args": ["--dart-define=API_TOKEN=dev-token-user-1"]
+    },
+    {
+      "name": "cooking_app (健身狂人B u_2)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "args": ["--dart-define=API_TOKEN=dev-token-user-2"]
+    },
+    {
+      "name": "cooking_app (厨房小白C u_3)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "args": ["--dart-define=API_TOKEN=dev-token-user-3"]
+    },
+    {
+      "name": "cooking_app (Chrome)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "args": ["--dart-define=API_TOKEN=dev-token-user-1"],
+      "deviceId": "chrome"
+    }
+  ]
+}

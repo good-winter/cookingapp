@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../l10n/l10n.dart';
+import '../../../providers/me_provider.dart';
 import '../../../providers/settings_provider.dart';
 import '../widgets/settings_card.dart';
 import '../widgets/settings_tile.dart';
@@ -16,14 +17,13 @@ import 'voice_screen.dart';
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
-  // 👤 预留后端对接：接入 GET /me 之后改为从接口读
-  static const String _nickname = '美食家';
-  static const String _avatarText = '美';
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
     final settings = ref.watch(settingsProvider);
+    // 👤 昵称与头像来自 GET /me。加载中显示占位符，而不是先摆一个写死的名字
+    // 再跳变 —— 用 dev-token-user-2 联调时那会看起来像串号了。
+    final me = ref.watch(meProvider).valueOrNull;
 
     return Scaffold(
       appBar: AppBar(
@@ -37,8 +37,8 @@ class SettingsScreen extends ConsumerWidget {
         children: [
           // 头像 + 用户名 + 个性签名，同一个矩形内
           UserProfileCard(
-            nickname: _nickname,
-            avatarText: _avatarText,
+            nickname: me?.nickname ?? '…',
+            avatarText: me?.avatarText ?? '…',
             signature: settings.signature,
             signaturePlaceholder: l10n.signaturePlaceholder,
             onTap: () => _editSignature(context, ref, settings.signature),

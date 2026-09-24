@@ -54,7 +54,7 @@ final settingsProvider =
 
 /// 读取本地已保存的设置，返回注入了初始状态的 override。
 ///
-/// 与 preferenceOverrides() 对称，由 core/bootstrap.dart 汇总。
+/// 由 core/bootstrap.dart 汇总。
 Future<List<Override>> settingsOverrides() async {
   final storage = SettingsStorage();
   final initial = await storage.load();

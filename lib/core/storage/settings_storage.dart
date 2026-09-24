@@ -7,7 +7,7 @@ import '../../models/app_settings.dart';
 
 /// App 本地设置的持久化。
 ///
-/// 结构与 PreferenceStorage 对称：只负责读写磁盘，不持有状态。
+/// 只负责读写磁盘，不持有状态 —— 状态由 SettingsNotifier 管。
 /// 两者关注点不同（饮食偏好 vs App 设置），所以分开存，互不影响。
 class SettingsStorage {
   /// 存储键，测试里也用它来预置/断言数据
