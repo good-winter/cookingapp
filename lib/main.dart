@@ -12,7 +12,8 @@ Future<void> main() async {
   // 读 SharedPreferences 前必须先初始化绑定
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 启动时把本地保存的饮食偏好与 App 设置读出来，注入 ProviderScope
+  // 启动时把本地保存的 App 设置读出来注入 ProviderScope。
+  // 饮食偏好已改由服务端存储（GET /me），不再从这里读。
   final overrides = await appOverrides();
 
   // 必须包裹 ProviderScope 才能使用 Riverpod
