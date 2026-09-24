@@ -91,6 +91,10 @@
 （`updatePreferencesCalls` / `recommendCalls` / `receivedCursors`），用来证明「保存后确实
 重拉了推荐」且「那次请求确实没带游标」—— 只看画面变没变是看不出接线对错的。
 
+另外新增了 `tool/api_smoke.dart`：用**真实的 `ApiClient`** 打**真实的后端**做联调自检。
+它补的是 widget 测试补不了的那块 —— `flutter test` 走假 adapter、且会拦掉真实 HTTP，
+所以 dio → Go 的序列化细节（中文、emoji、查询参数）只有真打一次才知道。详见第四节。
+
 ### 7. 顺手修掉的一个真 bug
 
 ```dart
@@ -100,6 +104,28 @@ options.headers['Authorization'] = 'Bearer $this.token';   // ❌
 Dart 的字符串插值不支持 `$this.field`：它把 `$this` 当对象插入，后面 `.token` 成了字面量，
 实际发出的是 `Bearer Instance of 'ApiClient'.token`，后端会一律判成无效 token ——
 而现象是「所有接口都 401」，很容易误判成后端鉴权写错了。是我自己写的测试抓到的。
+
+### 8. 联调时又发现一个 bug —— 在种子文件里，而且也是我引入的
+
+第一次真正启动后端时，迁移直接失败：
+
+```
+执行迁移失败 0002_seed.sql: Error 1146 (42S02):
+Table 'cookingapp.intodiet_modes' doesn't exist
+```
+
+表名 `intodiet_modes` 说明 `INTO` 和表名粘在一起了。根因是本分支基底里那次
+`INSERT INTO` → `INSERT IGNORE INTO` 的批量替换**漏掉了结尾空格**，13 条语句全变成
+`INSERT IGNORE INTOdiet_modes` 这种形式。
+
+**当时的自检没能抓住它**：只数了 `INSERT IGNORE INTO` 出现 13 次、裸 `INSERT INTO` 出现 0 次，
+这两个计数对「空格丢了」都无感。是坚持连真库跑一遍才暴露的 —— 这也正说明
+「单测全绿」不等于「能跑」。
+
+修复已提交到 `firsttext`（`dd5df2f`）并摘到 `secondtext`（`c8c5f7f`）。
+
+顺带记录：这次失败是**可恢复**的，印证了幂等设计的价值 —— 0001 因建表带 `IF NOT EXISTS`
+且已被记录，0002 未被记录，重启只重跑 0002；实测失败后数据零行、没有半套脏数据。
 
 ---
 
@@ -120,19 +146,33 @@ git apply docs/patches/2026-09-24-cors-for-flutter-web.patch
 cd server && go test ./...
 ```
 
-该补丁经过验证：写完时 `go vet` / `go test` 全绿，并用变异测试确认过「把 CORS 挪到鉴权
-之后」会让预检测试变红 —— 中间件顺序是这个补丁唯一的坑（预检请求**不携带** `Authorization`，
-排在鉴权之后就会被 401 挡下，真实请求永远发不出去）。
+该补丁经过**实测**验证，不只是单测：
 
-**只本地临时绕一下**（不改后端，但别提交）：
+- **应用前**：预检 `OPTIONS /api/v1/me/preferences` 返回 **404 且无任何 CORS 头**；带 `Origin`
+  的真实请求也没有 `Access-Control-Allow-Origin` —— 浏览器两条都会拦掉。
+- **应用后**：预检返回 **204** + `Allow-Origin: *` + `Allow-Headers: Authorization, Content-Type,
+  X-Debug-Token`；带 `Origin` 的真实请求带上了 CORS 头；不带 `Origin` 的 curl 请求照常工作。
+- 单测层面用变异测试确认过「把 CORS 挪到鉴权之后」会让预检测试变红 —— 中间件顺序是这个补丁
+  唯一的坑（预检请求**不携带** `Authorization`，排在鉴权之后会被 401 挡下，真实请求永远发不出去）。
+- 应用后的文件内容与原始实现逐字节一致（忽略行尾差异），`go vet` / `go test` 全绿。
 
-```bash
-flutter run -d chrome --web-browser-flag=--disable-web-security
+**不要**指望用命令行给 Chrome 关掉同源策略来绕过：`flutter run` **没有**
+`--web-browser-flag` 这个选项（Flutter 3.47.2 实测确认，`-d` 也只接受 `chrome` / `edge`）。
+若确实不想动后端，另一条正路是**让网页与 API 同源** —— 用 Go 服务托管 `flutter build web`
+的产物，同源就不存在 CORS 问题（这也是生产部署的合理选择）。
+
+### 前置二：建库 + 凭据
+
+注意**库本身要先建好** —— 迁移只负责建表和灌种子，不会 `CREATE DATABASE`。
+用任意 MySQL 客户端执行：
+
+```sql
+CREATE DATABASE IF NOT EXISTS cookingapp
+  DEFAULT CHARACTER SET utf8mb4 DEFAULT COLLATE utf8mb4_unicode_ci;
 ```
 
-### 前置二：数据库凭据
-
-`server/.env` 目前不存在，后端起不来。复制 `server/.env.example` 并填入 MySQL 密码即可。
+然后把 `server/.env.example` 复制为 `server/.env`，填入自己的 MySQL 密码。
+`.env` 已在 `.gitignore` 里，**不要提交**。
 
 ### 启动
 
@@ -158,16 +198,19 @@ flutter run -d chrome                           # 另开终端
 
 ## 三、不足之处
 
-### A. 没有端到端真跑过（最重要的一条）
+### A. 只剩「在浏览器里点一遍」
 
-本机 MySQL root 需要密码、`server/.env` 不存在，**后端起不来**。所以：
+这一条原先是最重要的空白，现在只差最后一步。**已经补上的**：
 
-- HTTP 那一层只用**假 dio adapter** 测过（错误信封解析、请求头注入、查询参数），
-  没有真的打通一次真实后端
-- 具体风险点：dio → Go 的序列化细节（中文与 emoji 的编码）、真实错误信封的边界情况、
-  `Content-Type` 协商
+- **后端**：连真实 MySQL 跑通了四个接口、偏好变更链路（12 → 5 条）、过期游标返回 400、
+  重复值去重、迁移幂等。`internal/store` 的集成测试此前一直被跳过，这次真正连库执行、全绿。
+- **前端网络层**：新增 `tool/api_smoke.dart`，用**真实的 `ApiClient`** 打**真实的后端**并逐项
+  断言通过 —— 中文昵称、中文菜谱名、emoji 均未乱码（这正是原先担心的风险点），游标翻页
+  两页不重叠，过期游标的 400 被正确解析成 `ApiException`。
+- **CORS**：见前置一，应用前后都实测过。
 
-建议接手时第一件事就是按第二节跑一遍，把这条补上。
+**仍没做的**：`flutter run -d chrome` 在浏览器里把界面点一遍。界面逻辑有 48 个 widget 测试
+覆盖，但「真人点击 → 渲染」这一层还没有眼睛看过。
 
 ### B. 依赖后端配合：CORS
 
@@ -241,6 +284,20 @@ CORS 那部分（中间件 + 配置 + 测试）我写过、测过、并用变异
 | `flutter analyze` | 干净 |
 | `flutter test` | 48/48 通过 |
 | `flutter build web --release` | 构建成功（wasm dry-run 警告来自 `flutter_tts`，既有问题，不影响 JS 构建） |
-| `go vet` / `go test`（本分支未改后端，确认未受影响） | 全绿 |
-| 与真实后端的端到端联调 | **未做**（见不足 A） |
-| CORS 补丁 | 已验证可干净应用，未应用（见不足 B/K） |
+| `go vet` / `go test`（含此前一直被跳过的 `internal/store` 集成测试） | 全绿（连真实 MySQL） |
+| 后端四个接口 + 契约字段核对 | 连真库实测通过 |
+| 「改偏好 → 推荐变化」 | 连真库实测 12 → 5 条 |
+| 过期游标返回 400（契约接口 2/4） | 连真库实测通过（旧指纹被拒、新游标正常翻页） |
+| 重复值去重（原先的 500） | 连真库实测通过，并用 `Error 1062 Duplicate entry 'u_1-fitness'` 反证了原缺陷真实存在 |
+| 迁移幂等（清空记录后重跑整份迁移） | 实测通过，各表行数与预期完全一致、无重复 |
+| 前端网络层 ↔ 真实后端 | `dart run tool/api_smoke.dart` 全部通过（中文/emoji 未乱码、翻页不重叠、错误信封正确解析） |
+| CORS 补丁 | 应用前后都实测过；本分支未应用，见 `docs/patches/` |
+| **浏览器里点一遍界面** | **未做**（见不足 A） |
+
+复现上述验证：
+
+```bash
+cd server && go run ./cmd/api        # 需 server/.env（见前置二）
+dart run tool/api_smoke.dart         # 前端网络层 ↔ 真实后端
+cd server && go test ./...           # 含集成测试
+```
