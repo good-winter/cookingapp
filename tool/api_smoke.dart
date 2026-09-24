@@ -2,6 +2,8 @@
 //
 // 联调自检：用**真实的** ApiClient 打**真实的**后端，验证网络层这一层真的能通。
 //
+// 这是个命令行脚本，输出到 stdout 就是它的用途，所以豁免 avoid_print。
+//
 // 为什么需要它：`flutter test` 走的是假 adapter，测的是解析与接线；而 dio -> Go 的
 // 序列化细节（中文、emoji、查询参数、请求头）只有真打一次才知道。测试环境还会拦掉
 // 真实 HTTP，所以这件事只能靠一个独立脚本做。
@@ -11,6 +13,8 @@
 //   dart run tool/api_smoke.dart           # 另开终端
 //
 // 它会临时改 u_1 的偏好，跑完恢复原状。
+// ignore_for_file: avoid_print
+
 import 'package:cooking_app/core/network/api_client.dart';
 import 'package:cooking_app/core/network/api_exception.dart';
 import 'package:cooking_app/models/user_preferences.dart';
