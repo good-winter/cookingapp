@@ -11,7 +11,9 @@ import (
 
 func NewRouter(cfg config.Config, h *Handler) *gin.Engine {
 	r := gin.New()
-	r.Use(gin.Recovery())
+	// CORS 挂在鉴权之前：预检请求不带 Authorization，若先过鉴权会被 401 挡下，
+	// 浏览器就永远不会发出真实请求。详见 middleware.CORS 的说明。
+	r.Use(gin.Recovery(), middleware.CORS(cfg.AllowedOrigins, cfg.AllowAnyOrigin()))
 	r.GET("/healthz", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
