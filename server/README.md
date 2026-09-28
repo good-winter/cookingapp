@@ -1,6 +1,8 @@
 # cookingapp 后端
 
-Go + Gin + MySQL 的 REST 服务，实现 `docs/API_CONTRACT.md` 中的 Phase 1 接口。
+Go + Gin + MySQL 的 REST 服务，实现 `docs/API_CONTRACT.md` 中的接口。
+Phase 1（用户与偏好 + 推荐）已落地，另加手机号验证码登录
+（契约补充见 `docs/2026-09-28-auth-login.md`）。
 
 ## 前置条件
 
@@ -51,14 +53,48 @@ go vet ./...       # 静态检查
 
 ## 已实现的接口
 
-Base URL 为 `/api/v1`，除健康检查外都需要 `Authorization: Bearer <token>`。
+Base URL 为 `/api/v1`。除健康检查与 `/auth/*` 外都需要
+`Authorization: Bearer <token>`。
 
-| 方法 | 路径 | 说明 |
+| 方法 | 路径 | 鉴权 | 说明 |
+|---|---|---|---|
+| POST | `/auth/sms/send` | 免 | 发送短信验证码 |
+| POST | `/auth/sms/verify` | 免 | 校验验证码，签发 token；号码未注册则自动注册 |
+| GET | `/me` | 需要 | 当前用户 + 饮食偏好 |
+| PUT | `/me/preferences` | 需要 | 全量替换偏好 |
+| GET | `/preferences/options` | 需要 | 选项字典（三组） |
+| GET | `/recipes/recommend` | 需要 | 按服务端偏好算出的推荐，游标分页 |
+
+### 手机号登录
+
+`POST /auth/sms/send` → `{"phone":"13800138000"}`，返回
+`{"expiresInSeconds":300,"retryAfterSeconds":60,"devCode":"123456"}`。
+`POST /auth/sms/verify` → `{"phone":"...","code":"..."}`，返回
+`{"token":"...","user":{...},"isNewUser":true}`。
+
+**开发期不真发短信。** `internal/auth` 里的 `DevSender` 只把验证码打进服务端日志，
+同时通过响应体的 `devCode` 回显给前端。`devCode` **仅在 `APP_ENV=development` 下出现**
+（由 `main.go` 决定是否填充 `api.SMSAuth.DevCode`），非开发环境走随机码且不回显。
+非 development 环境若没有接入真实发送方，`NewSender` 会直接报错让服务起不来 ——
+而不是退回 DevSender 让「验证码只写进日志、用户永远收不到」却返回成功。
+
+两条限制：
+
+| 限制 | 值 | 超出时 |
 |---|---|---|
-| GET | `/me` | 当前用户 + 饮食偏好 |
-| PUT | `/me/preferences` | 全量替换偏好 |
-| GET | `/preferences/options` | 选项字典（三组） |
-| GET | `/recipes/recommend` | 按服务端偏好算出的推荐，游标分页 |
+| 同号码重发间隔 | 60 秒 | `429 RATE_LIMITED`，`details.retryAfterSeconds` 给剩余秒数 |
+| 同号码 24 小时发送总量 | 10 条 | `429 RATE_LIMITED` |
+| 单条验证码允许的失败次数 | 5 次 | 该码作废，返回 `400 SMS_CODE_EXPIRED` |
+
+验证码是一次性的：校验通过后立即标记已消费，重复使用返回 `400 SMS_CODE_EXPIRED`。
+失败计数由 SQL 自增（`attempts = attempts + 1`）而非读-改-写，并发猜码不会互相覆盖。
+
+前端按钮的倒计时应当取响应里的 `retryAfterSeconds`，而不是硬编码 60 ——
+窗口是服务端定的。
+
+新增 `/auth/sms/send` 时踩过的一个坑写在 `internal/api/router.go` 的注释里：
+`v1.Use(...)` 对之后在该组注册的**所有**路由生效，登录接口必须挂在带鉴权中间件的
+子组之外，否则会变成「要求先登录才能登录」。`auth_test.go` 里有两条用例专门守这一点。
 
 ### 游标与偏好变更
 
@@ -74,6 +110,9 @@ Base URL 为 `/api/v1`，除健康检查外都需要 `Authorization: Bearer <tok
 偏移量，因此菜谱库增删条目也仍然安全。
 
 ### 测试 token
+
+登录签发的 token 也写在这张 `api_tokens` 表里，与下面三个静态 token 共用同一条
+解析路径（`internal/middleware/auth.go`），所以接真实登录时鉴权侧一行都没改。
 
 | token | 用户 |
 |---|---|
@@ -102,6 +141,12 @@ curl -s -H "$T" "$B/recipes/recommend?limit=10"
 curl -s -X PUT -H "$T" -H "Content-Type: application/json" \
   -d '{"dietMode":"vegetarian","crowds":["pregnant"],"avoidFoods":["seafood"]}' \
   $B/me/preferences
+
+# 手机号登录（免鉴权）。devCode 只在 development 下出现。
+curl -s -X POST -H "Content-Type: application/json" \
+  -d '{"phone":"13900000001"}' $B/auth/sms/send
+curl -s -X POST -H "Content-Type: application/json" \
+  -d '{"phone":"13900000001","code":"123456"}' $B/auth/sms/verify
 ```
 
 ## 目录结构
@@ -111,6 +156,7 @@ server/
 ├── cmd/api/                 启动装配
 └── internal/
     ├── api/                 HTTP 层：路由与 handler
+    ├── auth/                短信发送方（接口 + 开发期 DevSender）
     ├── config/              环境变量加载
     ├── db/                  连接与迁移执行器（migrations/ 内嵌 SQL）
     ├── httputil/            错误码常量与统一错误信封
@@ -127,7 +173,10 @@ server/
 
 - Phase 2：`POST /recognitions`、`/stats/summary`、`/stats/records`
 - Phase 3：社区接口与两个删除端点
-- 生产鉴权（JWT / 手机号登录）
+- **真实短信服务商**：登录流程已通，但发送侧只有 `DevSender`（只打日志）。
+  接入阿里云/腾讯云需实现 `auth.Sender` 并在 `NewSender` 中返回它 ——
+  在此之前非 development 环境会拒绝启动。另：`api_tokens` 签发的 token
+  **目前不过期**，上线前需要加 `expires_at` 并在中间件里校验。
 - 图片存储与上传
 
 ## 已知限制

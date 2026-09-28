@@ -17,14 +17,22 @@ func NewRouter(cfg config.Config, h *Handler) *gin.Engine {
 	})
 
 	v1 := r.Group("/api/v1")
-	v1.Use(middleware.Auth(h.Tokens, cfg.IsDevelopment()))
+
+	// 免鉴权：登录用。**必须注册在带 Auth 的子组之外** ——
+	// v1.Use(...) 对之后注册的所有路由生效，把这两个放进鉴权组会变成
+	// 「要求先登录才能登录」的死循环，而且报错信息完全指不到这里。
+	v1.POST("/auth/sms/send", h.PostSmsSend)
+	v1.POST("/auth/sms/verify", h.PostSmsVerify)
+
+	authed := v1.Group("")
+	authed.Use(middleware.Auth(h.Tokens, cfg.IsDevelopment()))
 	{
-		v1.GET("/me", h.GetMe)
-		v1.PUT("/me/preferences", h.PutPreferences)
+		authed.GET("/me", h.GetMe)
+		authed.PUT("/me/preferences", h.PutPreferences)
 
-		v1.GET("/preferences/options", h.GetOptions)
+		authed.GET("/preferences/options", h.GetOptions)
 
-		v1.GET("/recipes/recommend", h.GetRecommend)
+		authed.GET("/recipes/recommend", h.GetRecommend)
 	}
 
 	return r

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"time"
 )
 
 type Config struct {
@@ -11,6 +12,12 @@ type Config struct {
 	DSN         string
 	Env         string
 	AutoMigrate bool
+
+	// SmsCode 是开发期的固定验证码。**只在 IsDevelopment() 时被使用** ——
+	// 生产环境用随机码，这个值会被忽略（见 api.SMSAuth.DevCode 的填充处）。
+	SmsCode string
+	// SmsCodeTTL 是验证码的有效期。
+	SmsCodeTTL time.Duration
 }
 
 func Load() (Config, error) {
@@ -29,6 +36,14 @@ func Load() (Config, error) {
 		return Config{}, fmt.Errorf("APP_AUTO_MIGRATE 不是合法布尔值: %w", err)
 	}
 	cfg.AutoMigrate = auto
+
+	cfg.SmsCode = getenv("APP_SMS_CODE", "123456")
+
+	ttl, err := time.ParseDuration(getenv("APP_SMS_CODE_TTL", "5m"))
+	if err != nil {
+		return Config{}, fmt.Errorf("APP_SMS_CODE_TTL 不是合法时长: %w", err)
+	}
+	cfg.SmsCodeTTL = ttl
 
 	return cfg, nil
 }

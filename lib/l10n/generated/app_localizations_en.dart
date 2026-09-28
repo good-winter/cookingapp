@@ -182,7 +182,61 @@ class AppLocalizationsEn extends AppLocalizations {
   String get statsRetention => 'Retention: forever (tap to change)';
 
   @override
+  String get loginTitle => 'Sign in with phone';
+
+  @override
+  String get loginSubtitle =>
+      'Unregistered numbers get an account automatically';
+
+  @override
+  String get loginPhoneLabel => 'Phone number';
+
+  @override
+  String get loginPhoneHint => 'Enter an 11-digit phone number';
+
+  @override
+  String get loginCodeLabel => 'Verification code';
+
+  @override
+  String get loginCodeHint => '6 digits';
+
+  @override
+  String get loginSendCode => 'Get code';
+
+  @override
+  String loginResendIn(int seconds) {
+    return 'Resend in ${seconds}s';
+  }
+
+  @override
+  String get loginCodeSent => 'Code sent';
+
+  @override
+  String loginDevCodeHint(String code) {
+    return 'Dev mode: code is $code';
+  }
+
+  @override
+  String get loginSubmit => 'Sign in';
+
+  @override
+  String get loginWelcomeNew => 'Your account has been created';
+
+  @override
   String get settingsTitle => 'Settings';
+
+  @override
+  String get settingsAccount => 'Signed in as';
+
+  @override
+  String get settingsAccountDevToken => 'Development test account';
+
+  @override
+  String get settingsSignOut => 'Sign out';
+
+  @override
+  String get settingsSignOutConfirm =>
+      'You\'ll need to sign in with your phone number again. Continue?';
 
   @override
   String get signaturePlaceholder => 'Tap to set a status';

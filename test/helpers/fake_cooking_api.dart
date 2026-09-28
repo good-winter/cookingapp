@@ -4,6 +4,7 @@ import 'package:cooking_app/core/network/api_exception.dart';
 import 'package:cooking_app/core/network/cooking_api.dart';
 import 'package:cooking_app/features/cooking/models/recipe.dart';
 import 'package:cooking_app/features/cooking/models/recipe_page.dart';
+import 'package:cooking_app/models/auth_result.dart';
 import 'package:cooking_app/models/preference_options.dart';
 import 'package:cooking_app/models/user_preferences.dart';
 import 'package:cooking_app/models/user_profile.dart';
@@ -55,6 +56,72 @@ class FakeCookingApi implements CookingApi {
   /// 有了它才能断言「保存偏好后确实**丢弃**了游标」—— 只断言列表变短是不够的，
   /// 那看不出请求到底带没带游标。
   final List<String?> receivedCursors = [];
+
+  // --- 登录 ---
+
+  /// 服务端认可的验证码。输别的会被判为 SMS_CODE_INVALID，
+  /// 所以「输错码要显示服务端文案」这类用例走的是真实分支。
+  String validCode = '123456';
+
+  /// sendSmsCode 回显的验证码。设成 null 即可模拟生产环境（不回显）。
+  String? devCode = '123456';
+
+  /// 非 null 时下一次 sendSmsCode 抛出它 —— 用来测 429 限流与错误展示。
+  ApiException? failNextSendCode;
+
+  /// 非 null 时下一次 verifySmsCode 抛出它 —— 用来测验证码错误/过期。
+  ApiException? failNextVerify;
+
+  int sendSmsCodeCalls = 0;
+  int verifySmsCodeCalls = 0;
+
+  /// 每次 setToken 收到的值，含 null。
+  /// 断言「登录/登出后网络层确实换了 token」—— 只断言界面变了是不够的，
+  /// 界面变对而 token 没换，下一次请求就会 401。
+  final List<String?> receivedTokens = [];
+
+  @override
+  Future<SmsSendResult> sendSmsCode(String phone) async {
+    sendSmsCodeCalls++;
+    if (failNextSendCode != null) {
+      final e = failNextSendCode!;
+      failNextSendCode = null;
+      throw e;
+    }
+    return SmsSendResult(
+      expiresInSeconds: 300,
+      retryAfterSeconds: 60,
+      devCode: devCode,
+    );
+  }
+
+  @override
+  Future<AuthResult> verifySmsCode({
+    required String phone,
+    required String code,
+  }) async {
+    verifySmsCodeCalls++;
+    if (failNextVerify != null) {
+      final e = failNextVerify!;
+      failNextVerify = null;
+      throw e;
+    }
+    if (code != validCode) {
+      throw const ApiException(
+        code: 'SMS_CODE_INVALID',
+        message: '验证码错误',
+        statusCode: 400,
+      );
+    }
+    return AuthResult(
+      token: 'token-$phone',
+      user: profile,
+      isNewUser: false,
+    );
+  }
+
+  @override
+  void setToken(String? token) => receivedTokens.add(token);
 
   @override
   Future<UserProfile> getMe() async {

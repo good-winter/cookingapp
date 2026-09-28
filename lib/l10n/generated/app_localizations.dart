@@ -434,11 +434,107 @@ abstract class AppLocalizations {
   /// **'数据保存时间: 永久保存 (点击修改)'**
   String get statsRetention;
 
+  /// 登录页大标题
+  ///
+  /// In zh, this message translates to:
+  /// **'手机号登录'**
+  String get loginTitle;
+
+  /// 登录页副标题：说明登录与注册是同一个入口
+  ///
+  /// In zh, this message translates to:
+  /// **'未注册的手机号将自动创建账号'**
+  String get loginSubtitle;
+
+  /// 手机号输入框的标签
+  ///
+  /// In zh, this message translates to:
+  /// **'手机号'**
+  String get loginPhoneLabel;
+
+  /// 手机号输入框的占位提示
+  ///
+  /// In zh, this message translates to:
+  /// **'请输入 11 位手机号'**
+  String get loginPhoneHint;
+
+  /// 验证码输入框的标签
+  ///
+  /// In zh, this message translates to:
+  /// **'验证码'**
+  String get loginCodeLabel;
+
+  /// 验证码输入框的占位提示
+  ///
+  /// In zh, this message translates to:
+  /// **'6 位数字'**
+  String get loginCodeHint;
+
+  /// 发送验证码按钮
+  ///
+  /// In zh, this message translates to:
+  /// **'获取验证码'**
+  String get loginSendCode;
+
+  /// 倒计时中的重发按钮，秒数由服务端下发的 retryAfterSeconds 驱动
+  ///
+  /// In zh, this message translates to:
+  /// **'{seconds}s 后重发'**
+  String loginResendIn(int seconds);
+
+  /// 验证码发送成功提示
+  ///
+  /// In zh, this message translates to:
+  /// **'验证码已发送'**
+  String get loginCodeSent;
+
+  /// 后端跑在 development 时会回显验证码，直接显示出来免去翻日志
+  ///
+  /// In zh, this message translates to:
+  /// **'开发模式：验证码 {code}'**
+  String loginDevCodeHint(String code);
+
+  /// 登录按钮
+  ///
+  /// In zh, this message translates to:
+  /// **'登录'**
+  String get loginSubmit;
+
+  /// 手机号首次登录（自动注册）后的提示
+  ///
+  /// In zh, this message translates to:
+  /// **'已为你创建账号'**
+  String get loginWelcomeNew;
+
   /// 设置页标题，也是底部导航第 4 个 Tab 的名字
   ///
   /// In zh, this message translates to:
   /// **'设置'**
   String get settingsTitle;
+
+  /// 设置页里显示当前登录的账号
+  ///
+  /// In zh, this message translates to:
+  /// **'当前账号'**
+  String get settingsAccount;
+
+  /// 用 --dart-define=API_TOKEN 启动时没有手机号，用这个占位
+  ///
+  /// In zh, this message translates to:
+  /// **'开发期测试账号'**
+  String get settingsAccountDevToken;
+
+  /// 退出登录按钮
+  ///
+  /// In zh, this message translates to:
+  /// **'退出登录'**
+  String get settingsSignOut;
+
+  /// 退出登录的二次确认正文
+  ///
+  /// In zh, this message translates to:
+  /// **'退出后需要重新用手机号登录，确定吗？'**
+  String get settingsSignOutConfirm;
 
   /// 个性签名为空时，用户信息卡里的提示文案
   ///

@@ -15,6 +15,7 @@ import (
 	"github.com/joho/godotenv"
 
 	"github.com/good-winter/cookingapp/server/internal/api"
+	"github.com/good-winter/cookingapp/server/internal/auth"
 	"github.com/good-winter/cookingapp/server/internal/config"
 	"github.com/good-winter/cookingapp/server/internal/db"
 	"github.com/good-winter/cookingapp/server/internal/store"
@@ -45,11 +46,25 @@ func main() {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
+	sender, err := auth.NewSender(cfg)
+	if err != nil {
+		log.Fatalf("初始化短信发送方失败: %v", err)
+	}
+
+	smsAuth := api.SMSAuth{Sender: sender, CodeTTL: cfg.SmsCodeTTL}
+	if cfg.IsDevelopment() {
+		// 开发期才启用固定码与响应回显。非 development 下 DevCode 保持为空，
+		// 于是自动走随机码，且响应里不会出现 devCode 字段。
+		smsAuth.DevCode = cfg.SmsCode
+	}
+
 	handler := &api.Handler{
 		Users:   store.NewMySQLUserStore(conn),
 		Tokens:  store.NewMySQLUserStore(conn),
 		Options: store.NewMySQLOptionsStore(conn),
 		Recipes: store.NewMySQLRecipeStore(conn),
+		Auth:    store.NewMySQLAuthStore(conn),
+		SMS:     smsAuth,
 	}
 
 	srv := &http.Server{

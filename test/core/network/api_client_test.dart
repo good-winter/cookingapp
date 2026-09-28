@@ -46,13 +46,19 @@ class _FakeAdapter implements HttpClientAdapter {
   void close({bool force = false}) {}
 }
 
-ApiClient _clientWith(_FakeAdapter adapter, {String? debugToken}) {
+ApiClient _clientWith(
+  _FakeAdapter adapter, {
+  String? debugToken,
+  String token = 'test-token',
+  void Function()? onUnauthorized,
+}) {
   final dio = Dio()..httpClientAdapter = adapter;
   return ApiClient(
     dio: dio,
     baseUrl: 'http://127.0.0.1:8080/api/v1',
-    token: 'test-token',
+    token: token,
     debugToken: debugToken ?? '',
+    onUnauthorized: onUnauthorized,
   );
 }
 
@@ -76,6 +82,131 @@ void main() {
       final headers = adapter.requests.single.headers;
       expect(headers['Authorization'], 'Bearer test-token');
       expect(headers['X-Debug-Token'], 'dev-token-user-2');
+    });
+  });
+
+  group('token 的生命周期', () {
+    // 未登录时若仍拼出 'Bearer '（或更糟的 'Bearer null'），后端会当成一个
+    // 无效 token 回 401 —— 真正的原因（压根没登录）就被这层假象盖住了。
+    test('没有 token 时完全不带 Authorization 头', () async {
+      final adapter = _FakeAdapter(body: '{"id":"u_1"}');
+      await _clientWith(adapter, token: '').getMe();
+
+      expect(adapter.requests.single.headers.containsKey('Authorization'), isFalse);
+    });
+
+    // 登录成功后必须换上新 token，否则下个请求还是以旧身份发出。
+    test('setToken 之后请求头跟着变，置空后不再带', () async {
+      final adapter = _FakeAdapter(body: '{"id":"u_1"}');
+      final client = _clientWith(adapter);
+
+      client.setToken('token-from-login');
+      await client.getMe();
+      expect(adapter.requests.last.headers['Authorization'],
+          'Bearer token-from-login');
+
+      client.setToken(null);
+      await client.getMe();
+      expect(adapter.requests.last.headers.containsKey('Authorization'), isFalse);
+    });
+
+    // 401 在拦截器里统一收口：token 被服务端清掉后，若各调用点各自处理，
+    // 漏掉一个用户就会卡在「反复报未认证却退不出去」的死角。
+    test('收到 401 时回调 onUnauthorized', () async {
+      final adapter = _FakeAdapter(
+        statusCode: 401,
+        body: '{"error":{"code":"UNAUTHORIZED","message":"访问令牌无效","details":{}}}',
+      );
+      var calls = 0;
+      final client = _clientWith(adapter, onUnauthorized: () => calls++);
+
+      await expectLater(() => client.getMe(), throwsA(isA<ApiException>()));
+      expect(calls, 1, reason: '401 必须触发一次登出回调');
+    });
+
+    // 别把「参数错」也当成「该登出」——那会让用户莫名其妙被踢回登录页。
+    test('非 401 的错误不触发 onUnauthorized', () async {
+      final adapter = _FakeAdapter(
+        statusCode: 400,
+        body: '{"error":{"code":"INVALID_PARAMETER","message":"参数错误","details":{}}}',
+      );
+      var calls = 0;
+      final client = _clientWith(adapter, onUnauthorized: () => calls++);
+
+      await expectLater(() => client.getMe(), throwsA(isA<ApiException>()));
+      expect(calls, 0);
+    });
+  });
+
+  group('登录接口', () {
+    test('sendSmsCode 发出手机号，解出限流窗口与 devCode', () async {
+      final adapter = _FakeAdapter(
+        body: '{"expiresInSeconds":300,"retryAfterSeconds":60,"devCode":"123456"}',
+      );
+      final result = await _clientWith(adapter).sendSmsCode('13800138000');
+
+      final req = adapter.requests.single;
+      expect(req.method, 'POST');
+      expect(req.path, '/auth/sms/send');
+      expect((req.data as Map)['phone'], '13800138000');
+      // 倒计时用服务端给的值，不硬编码 60
+      expect(result.retryAfterSeconds, 60);
+      expect(result.devCode, '123456');
+    });
+
+    test('生产环境响应里没有 devCode 时解成 null', () async {
+      final adapter = _FakeAdapter(
+        body: '{"expiresInSeconds":300,"retryAfterSeconds":60}',
+      );
+      final result = await _clientWith(adapter).sendSmsCode('13800138000');
+
+      expect(result.devCode, isNull);
+    });
+
+    test('verifySmsCode 解出 token 与用户', () async {
+      final adapter = _FakeAdapter(body: '''
+        {"token":"abc123","isNewUser":true,
+         "user":{"id":"u_9","nickname":"用户0001","avatarText":"01",
+                 "timezone":"Asia/Shanghai","preferences":{}}}
+      ''');
+      final result = await _clientWith(adapter)
+          .verifySmsCode(phone: '13800138000', code: '123456');
+
+      final req = adapter.requests.single;
+      expect(req.path, '/auth/sms/verify');
+      expect((req.data as Map)['code'], '123456');
+      expect(result.token, 'abc123');
+      expect(result.isNewUser, isTrue);
+      expect(result.user.nickname, '用户0001');
+    });
+
+    test('验证码错误时抛出服务端文案', () async {
+      final adapter = _FakeAdapter(
+        statusCode: 400,
+        body: '{"error":{"code":"SMS_CODE_INVALID","message":"验证码错误","details":{}}}',
+      );
+
+      await expectLater(
+        () => _clientWith(adapter)
+            .verifySmsCode(phone: '13800138000', code: '000000'),
+        throwsA(isA<ApiException>()
+            .having((e) => e.code, 'code', 'SMS_CODE_INVALID')
+            .having((e) => e.message, 'message', '验证码错误')),
+      );
+    });
+
+    // 没有 token 的「成功」响应是坏的。放它过去的话，一个空 token 会一路
+    // 流到网络层，表现为之后每个请求都 401 —— 错误现场离病因很远。
+    test('响应里缺 token 时报错，而不是返回空 token', () async {
+      final adapter = _FakeAdapter(
+        body: '{"isNewUser":true,"user":{"id":"u_9"}}',
+      );
+
+      await expectLater(
+        () => _clientWith(adapter)
+            .verifySmsCode(phone: '13800138000', code: '123456'),
+        throwsA(isA<ApiException>()),
+      );
     });
   });
 

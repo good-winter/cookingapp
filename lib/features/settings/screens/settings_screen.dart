@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../l10n/l10n.dart';
+import '../../../providers/auth_provider.dart';
 import '../../../providers/me_provider.dart';
 import '../../../providers/settings_provider.dart';
 import '../widgets/settings_card.dart';
@@ -24,6 +25,9 @@ class SettingsScreen extends ConsumerWidget {
     // 👤 昵称与头像来自 GET /me。加载中显示占位符，而不是先摆一个写死的名字
     // 再跳变 —— 用 dev-token-user-2 联调时那会看起来像串号了。
     final me = ref.watch(meProvider).valueOrNull;
+    // 当前登录账号。手机号只有用户自己输的那种登录才有，
+    // 开发期注入 token 时是空的 —— 见下面的显示分支。
+    final auth = ref.watch(authProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -79,9 +83,58 @@ class SettingsScreen extends ConsumerWidget {
               ),
             ],
           ),
+          const SizedBox(height: 20),
+          SettingsCard(
+            children: [
+              // 纯展示，不可点击 —— onTap 留空即表示这一点。
+              SettingsTile(
+                icon: Icons.account_circle_outlined,
+                title: l10n.settingsAccount,
+                // 开发期用 --dart-define 注入 token 时没有手机号，
+                // 显示「开发期测试账号」而不是一片空白。
+                trailingText: auth.maskedPhone.isEmpty
+                    ? l10n.settingsAccountDevToken
+                    : auth.maskedPhone,
+              ),
+              SettingsTile(
+                icon: Icons.logout_outlined,
+                title: l10n.settingsSignOut,
+                onTap: () => _confirmSignOut(context, ref),
+              ),
+            ],
+          ),
         ],
       ),
     );
+  }
+
+  /// 退出登录。二次确认是必要的：这个动作会清掉本地会话，且没有「撤销」。
+  Future<void> _confirmSignOut(BuildContext context, WidgetRef ref) async {
+    final l10n = context.l10n;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(l10n.settingsSignOut),
+        content: Text(l10n.settingsSignOutConfirm),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: Text(l10n.actionCancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text(l10n.settingsSignOut),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    // 清完不必自己跳转：路由守卫看到登录态变化会把用户送回登录页。
+    // 在这里 context.go 反而会和守卫抢方向盘。
+    await ref.read(authProvider.notifier).signOut();
   }
 
   /// 子页面沿用项目已有做法（community_screen 打开发帖页也是这么做的）：

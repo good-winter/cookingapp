@@ -12,9 +12,13 @@ Future<void> main() async {
   // 读 SharedPreferences 前必须先初始化绑定
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 启动时把本地保存的 App 设置读出来注入 ProviderScope。
+  // 启动时把本地保存的 App 设置读出来注入 ProviderScope，并解析出登录态
+  // （本地会话 → 编译期 API_TOKEN → 未登录）。
   // 饮食偏好已改由服务端存储（GET /me），不再从这里读。
-  final overrides = await appOverrides();
+  //
+  // 这一步必须在 runApp 之前完成：路由守卫要靠它同步决定首个页面是
+  // 登录页还是主界面，晚一拍就会先闪一下错误的页面。
+  final overrides = await appOverrides(session: await resolveInitialSession());
 
   // 必须包裹 ProviderScope 才能使用 Riverpod
   runApp(ProviderScope(overrides: overrides, child: const MyApp()));

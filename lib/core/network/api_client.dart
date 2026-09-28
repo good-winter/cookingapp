@@ -3,6 +3,7 @@
 import 'package:dio/dio.dart';
 
 import '../../features/cooking/models/recipe_page.dart';
+import '../../models/auth_result.dart';
 import '../../models/preference_options.dart';
 import '../../models/user_preferences.dart';
 import '../../models/user_profile.dart';
@@ -11,17 +12,26 @@ import 'cooking_api.dart';
 
 /// [CookingApi] 的真实实现，基于 dio。
 ///
-/// Base URL 与 token 都从编译期常量读（`--dart-define`），token 不落盘 ——
-/// 这是契约「开发期 token 注入」一节的明确要求。
+/// Base URL 从编译期常量读（`--dart-define`）。
 ///
-/// 构造参数全部可注入（dio / baseUrl / token / debugToken），测试因此可以塞一个
-/// 假 adapter 进来，不必真的联网。
+/// token 有两个来源，优先级是「用户登录换来的」>「编译期 `API_TOKEN`」：
+/// 前者由登录流程调 [setToken] 装上并落盘（见 AuthStorage）；
+/// 后者是开发期快捷方式，不落盘 —— 契约「开发期 token 注入」一节要求的正是后者。
+///
+/// 构造参数全部可注入（dio / baseUrl / token / debugToken / onUnauthorized），
+/// 测试因此可以塞一个假 adapter 进来，不必真的联网。
 class ApiClient implements CookingApi {
-  ApiClient({Dio? dio, String? baseUrl, String? token, String? debugToken})
-      : _dio = dio ?? Dio(),
+  ApiClient({
+    Dio? dio,
+    String? baseUrl,
+    String? token,
+    String? debugToken,
+    void Function()? onUnauthorized,
+  })  : _dio = dio ?? Dio(),
         baseUrl = baseUrl ?? defaultBaseUrl,
-        token = token ?? defaultToken,
-        debugToken = debugToken ?? defaultDebugToken {
+        _token = token ?? defaultToken,
+        debugToken = debugToken ?? defaultDebugToken,
+        _onUnauthorized = onUnauthorized {
     _dio.options = BaseOptions(
       baseUrl: this.baseUrl,
       connectTimeout: requestTimeout,
@@ -31,16 +41,33 @@ class ApiClient implements CookingApi {
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) {
-          // 契约：除健康检查外所有接口都要 Bearer token。
-          // 注意必须写 ${this.token}：`$this.token` 会被解析成「$this 的值」+ 字面量
-          // 「.token」，发出去就是 Bearer Instance of 'ApiClient'.token，后端一律判无效。
-          options.headers['Authorization'] = 'Bearer ${this.token}';
+          // 契约：除健康检查与 /auth/* 外所有接口都要 Bearer token。
+          //
+          // token 为空时**完全不发这个头**：拼出 'Bearer null' 的话，后端会把它
+          // 当成一个无效 token 回 401，而真正的原因（压根没登录）就被这层假象
+          // 盖住了 —— 与下面那条注释防的是同一类 bug。
+          final token = _token;
+          if (token != null && token.isNotEmpty) {
+            options.headers['Authorization'] = 'Bearer $token';
+          }
           // 开发期切用户用。后端的语义是「覆盖 Authorization」，所以两个头同时
           // 带上时以调试头为准 —— 这正是设置页能免重编译切用户的原因。
+          //
+          // 必须写 this.debugToken：构造器体内裸写 debugToken 拿到的是**同名参数**
+          // （`String?`），不是字段 —— 那会连带让 `isNotEmpty` 变成对可空值取值。
           if (this.debugToken.isNotEmpty) {
             options.headers['X-Debug-Token'] = this.debugToken;
           }
           handler.next(options);
+        },
+        onError: (error, handler) {
+          // 401 统一在这里收口：token 被服务端清掉（换库、清数据）之后，
+          // 任何接口都会 401，而各个调用点不可能都记得处理 —— 漏掉一个，
+          // 用户就会卡在一个反复报「未认证」却退不出去的死角。
+          if (error.response?.statusCode == 401) {
+            _onUnauthorized?.call();
+          }
+          handler.next(error);
         },
       ),
     );
@@ -49,8 +76,18 @@ class ApiClient implements CookingApi {
   final Dio _dio;
 
   final String baseUrl;
-  final String token;
   final String debugToken;
+
+  /// 由 [onUnauthorized] 触发，网络层不反向依赖 Riverpod。
+  final void Function()? _onUnauthorized;
+
+  String? _token;
+
+  /// 当前token；null 表示未登录。
+  String? get token => _token;
+
+  @override
+  void setToken(String? value) => _token = value;
 
   /// 用 `--dart-define=API_BASE_URL=...` 覆盖。
   ///
@@ -61,11 +98,13 @@ class ApiClient implements CookingApi {
     defaultValue: 'http://127.0.0.1:8080/api/v1',
   );
 
-  /// 用 `--dart-define=API_TOKEN=dev-token-user-2` 切换测试用户。
-  static const String defaultToken = String.fromEnvironment(
-    'API_TOKEN',
-    defaultValue: 'dev-token-user-1',
-  );
+  /// 用 `--dart-define=API_TOKEN=dev-token-user-2` 预设一个开发期身份。
+  ///
+  /// 默认是**空串**，也就是「没有预设身份」—— 这是刻意的：默认值若指向
+  /// dev-token-user-1，裸跑 `flutter run` 就会静默地以该用户登录，登录页
+  /// 永远不会出现，看上去像「登录功能没生效」。现在只有显式传了这个参数
+  /// 才会跳过登录（.vscode/launch.json 的三个用户启动项就是这么用的）。
+  static const String defaultToken = String.fromEnvironment('API_TOKEN');
 
   /// 用 `--dart-define=API_DEBUG_TOKEN=...` 指定运行时要切换成的用户。
   /// 留空则不带该请求头。
@@ -74,6 +113,28 @@ class ApiClient implements CookingApi {
 
   /// 契约：全局 10 秒超时。
   static const Duration requestTimeout = Duration(seconds: 10);
+
+  @override
+  Future<SmsSendResult> sendSmsCode(String phone) async {
+    final data = await _send(
+      () => _dio.post<dynamic>('/auth/sms/send', data: {'phone': phone}),
+    );
+    return SmsSendResult.fromJson(_asMap(data));
+  }
+
+  @override
+  Future<AuthResult> verifySmsCode({
+    required String phone,
+    required String code,
+  }) async {
+    final data = await _send(
+      () => _dio.post<dynamic>(
+        '/auth/sms/verify',
+        data: {'phone': phone, 'code': code},
+      ),
+    );
+    return AuthResult.fromJson(_asMap(data));
+  }
 
   @override
   Future<UserProfile> getMe() async {

@@ -4,16 +4,48 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 // 导入四个核心页面
+import '../../features/auth/screens/login_screen.dart';
 import '../../features/cooking/screens/cooking_screen.dart';
 import '../../features/community/screens/community_screen.dart';
 import '../../features/statistics/screens/statistics_screen.dart';
 import '../../features/settings/screens/settings_screen.dart';
 import '../../l10n/l10n.dart';
+import '../../providers/auth_provider.dart';
+
+/// 登录页路径。守卫与登出后跳转都引用它，避免这个字符串散落各处。
+const String loginRoutePath = '/login';
 
 final routerProvider = Provider<GoRouter>((ref) {
+  // go_router 的 refreshListenable 要一个 Listenable，而登录态来自 Riverpod，
+  // 中间用这个自增计数器搭桥。
+  //
+  // 不能改成在 Provider 里 ref.watch(authProvider)：那样每次登录/登出都会重建
+  // GoRouter，导航栈连同各页面的状态会整个丢掉。
+  final refresh = ValueNotifier<int>(0);
+  ref.listen(authProvider, (_, __) => refresh.value++);
+  ref.onDispose(refresh.dispose);
+
   return GoRouter(
-    initialLocation: '/cooking', // 默认进入烹饪页
+    // 首个页面按登录态直接定下来。启动时的会话在 runApp 之前就读完了
+    // （见 bootstrap.resolveInitialSession），所以这里同步判定是准确的，
+    // 不会出现先渲染主界面再被 redirect 踢走那种闪烁。
+    initialLocation:
+        ref.read(authProvider).isAuthenticated ? '/cooking' : loginRoutePath,
+    refreshListenable: refresh,
+    redirect: (context, state) {
+      final loggedIn = ref.read(authProvider).isAuthenticated;
+      final atLogin = state.matchedLocation == loginRoutePath;
+
+      if (!loggedIn) return atLogin ? null : loginRoutePath;
+      // 已登录还停在登录页（登录成功、或冷启动带着会话），送回主界面。
+      return atLogin ? '/cooking' : null;
+    },
     routes: [
+      // 登录页注册在 ShellRoute **之外**：它不该有底部导航栏。
+      GoRoute(
+        path: loginRoutePath,
+        builder: (context, state) => const LoginScreen(),
+      ),
       ShellRoute(
         builder: (context, state, child) {
           return MainScaffold(child: child);

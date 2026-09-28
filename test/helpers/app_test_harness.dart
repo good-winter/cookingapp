@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:cooking_app/core/bootstrap.dart';
 import 'package:cooking_app/core/network/cooking_api.dart';
 import 'package:cooking_app/main.dart';
+import 'package:cooking_app/models/auth_session.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -23,10 +24,17 @@ import 'fake_cooking_api.dart';
 /// **默认就给一个替身**，而不是让不传的用例去撞真实网络 —— 否则每个用例都会
 /// 隐式依赖「连接被立刻拒绝」这个时序：本机有后端在跑时会真的发请求，没有时
 /// 又要等超时，结果取决于环境而不是被测代码。要定制行为就传自己的 FakeCookingApi。
+/// 测试默认使用的登录会话。
+///
+/// [pumpApp] 默认给一个已登录状态，原因见下。
+const AuthSession testAuthSession =
+    AuthSession(token: 'test-token', phone: '13800138000');
+
 Future<void> pumpApp(
   WidgetTester tester, {
   Map<String, Object> stored = const {},
   CookingApi? api,
+  bool signedIn = true,
 }) async {
   SharedPreferences.setMockInitialValues(stored);
 
@@ -34,7 +42,17 @@ Future<void> pumpApp(
   // "No ProviderScope found"
   await tester.pumpWidget(
     ProviderScope(
-      overrides: await appOverrides(api: api ?? FakeCookingApi()),
+      overrides: await appOverrides(
+        api: api ?? FakeCookingApi(),
+        // 显式传会话而不是让 appOverrides 去解析存储：这样「已登录/未登录」
+        // 在测试里是确定的，不会因为开发机恰好设了
+        // --dart-define=API_TOKEN 而换成另一种。
+        //
+        // 默认**已登录**，否则路由守卫会把既有的每个用例都踹到登录页，
+        // 整张回归网一次全红 —— 红成一片就分不清是守卫写错了还是用例没跟上。
+        // 测登录流程的用例显式传 signedIn: false。
+        session: signedIn ? testAuthSession : null,
+      ),
       child: const MyApp(),
     ),
   );

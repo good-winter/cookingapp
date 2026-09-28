@@ -179,7 +179,59 @@ class AppLocalizationsZh extends AppLocalizations {
   String get statsRetention => '数据保存时间: 永久保存 (点击修改)';
 
   @override
+  String get loginTitle => '手机号登录';
+
+  @override
+  String get loginSubtitle => '未注册的手机号将自动创建账号';
+
+  @override
+  String get loginPhoneLabel => '手机号';
+
+  @override
+  String get loginPhoneHint => '请输入 11 位手机号';
+
+  @override
+  String get loginCodeLabel => '验证码';
+
+  @override
+  String get loginCodeHint => '6 位数字';
+
+  @override
+  String get loginSendCode => '获取验证码';
+
+  @override
+  String loginResendIn(int seconds) {
+    return '${seconds}s 后重发';
+  }
+
+  @override
+  String get loginCodeSent => '验证码已发送';
+
+  @override
+  String loginDevCodeHint(String code) {
+    return '开发模式：验证码 $code';
+  }
+
+  @override
+  String get loginSubmit => '登录';
+
+  @override
+  String get loginWelcomeNew => '已为你创建账号';
+
+  @override
   String get settingsTitle => '设置';
+
+  @override
+  String get settingsAccount => '当前账号';
+
+  @override
+  String get settingsAccountDevToken => '开发期测试账号';
+
+  @override
+  String get settingsSignOut => '退出登录';
+
+  @override
+  String get settingsSignOutConfirm => '退出后需要重新用手机号登录，确定吗？';
 
   @override
   String get signaturePlaceholder => '点击设置个性签名';

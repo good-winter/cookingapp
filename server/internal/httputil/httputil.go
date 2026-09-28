@@ -15,6 +15,12 @@ const (
 	CodeInvalidParameter       = "INVALID_PARAMETER"
 	CodeRateLimited            = "RATE_LIMITED"
 	CodeInternalError          = "INTERNAL_ERROR"
+
+	// 短信验证码登录（契约补充，见 docs/2026-09-28-auth-login.md）。
+	// 刻意不复用 INVALID_PARAMETER：前端要靠这两个码把「码输错了，改一位再试」
+	// 与「码过期了，得重新获取」区分开，二者给的引导完全不同。
+	CodeSmsCodeInvalid = "SMS_CODE_INVALID"
+	CodeSmsCodeExpired = "SMS_CODE_EXPIRED"
 )
 
 type ErrorBody struct {

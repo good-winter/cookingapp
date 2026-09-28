@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -52,6 +53,17 @@ func (f fakeTokens) UserIDByToken(_ context.Context, token string) (string, erro
 		return id, nil
 	}
 	return "", store.ErrNotFound
+}
+
+// CreateToken 把签发的 token 写回同一张表，这样「签发 → 拿它调 /me」
+// 这条链路在测试里是通的，而不只是断言响应里有个字符串。
+// valid 是 map（引用类型），所以值接收者也能写。
+func (f fakeTokens) CreateToken(_ context.Context, token, userID string) error {
+	if f.valid == nil {
+		return errors.New("fakeTokens.valid 未初始化")
+	}
+	f.valid[token] = userID
+	return nil
 }
 
 func testRouterWith(h *Handler) *gin.Engine {

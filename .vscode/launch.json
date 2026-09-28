@@ -1,11 +1,24 @@
 {
   // 契约「开发期 token 注入」要求：token 用编译期 --dart-define 注入，不落盘。
-  // 这里为三个种子用户各配一个启动项，切换测试用户不必改代码。
+  // 前三个启动项为种子用户各预设一个身份，切换测试用户不必改代码 ——
+  // 代价是跳过登录页，直接以该用户进入主界面。
+  //
+  // 第四个「走登录流程」不传 API_TOKEN：这样才会停在登录页，用手机号 +
+  // 验证码真实登录一次。验证码在开发期由后端回显（响应里的 devCode），
+  // 也打在后端日志里，不必真收短信。
   //
   // 后端需先启动（cd server && go run ./cmd/api），且 APP_ENV=development ——
   // 该模式下后端会放行 CORS，Flutter web 才能跨源访问它在 8080 上的接口。
   "version": "0.2.0",
   "configurations": [
+    {
+      // 不传 API_TOKEN，因此不会跳过登录 —— 用来联调登录页本身。
+      // 上面三个预设身份的启动项仍可直接用，登录一次后会落盘覆盖它们。
+      "name": "cooking_app (走登录流程)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart"
+    },
     {
       "name": "cooking_app (美食家 u_1)",
       "request": "launch",

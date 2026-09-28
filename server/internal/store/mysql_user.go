@@ -28,6 +28,18 @@ func (s *MySQLUserStore) UserIDByToken(ctx context.Context, token string) (strin
 	return userID, nil
 }
 
+// CreateToken 实现 TokenStore：签发登录 token。
+//
+// 与三个开发期静态 token 共用 api_tokens 表，因此中间件一行都不用改 ——
+// 这正是契约里「token → userId 必须走真实中间件」那条要求兑现的地方。
+func (s *MySQLUserStore) CreateToken(ctx context.Context, token, userID string) error {
+	if _, err := s.db.ExecContext(ctx,
+		`INSERT INTO api_tokens (token, user_id) VALUES (?, ?)`, token, userID); err != nil {
+		return fmt.Errorf("签发 token 失败: %w", err)
+	}
+	return nil
+}
+
 func (s *MySQLUserStore) GetUser(ctx context.Context, userID string) (models.User, error) {
 	var u models.User
 	err := s.db.QueryRowContext(ctx,

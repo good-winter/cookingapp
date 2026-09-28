@@ -19,7 +19,16 @@ import 'package:cooking_app/core/network/api_client.dart';
 import 'package:cooking_app/core/network/api_exception.dart';
 import 'package:cooking_app/models/user_preferences.dart';
 
-final _api = ApiClient();
+/// 脚本需要一个能过鉴权的身份。
+///
+/// 编译期没传 `API_TOKEN` 时回落到种子用户 u_1：App 那边的默认值已改成空串
+/// （否则裸跑 flutter run 会静默登录，登录页永远不出现），但本脚本不打登录流程，
+/// 「零配置可用」比「和 App 的默认值保持一致」更要紧。
+final _api = ApiClient(
+  token: ApiClient.defaultToken.isEmpty
+      ? 'dev-token-user-1'
+      : ApiClient.defaultToken,
+);
 var _failures = 0;
 
 void check(String label, bool ok, String detail) {
@@ -28,7 +37,7 @@ void check(String label, bool ok, String detail) {
 }
 
 Future<void> main() async {
-  print('目标: ${ApiClient.defaultBaseUrl}   token: ${ApiClient.defaultToken}\n');
+  print('目标: ${ApiClient.defaultBaseUrl}   token: ${_api.token}\n');
 
   // --- 1. GET /me ---
   final me = await _api.getMe();

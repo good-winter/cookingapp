@@ -1,11 +1,51 @@
 package models
 
+import "time"
+
 type User struct {
 	ID          string      `json:"id"`
 	Nickname    string      `json:"nickname"`
 	AvatarText  string      `json:"avatarText"`
 	Timezone    string      `json:"timezone"`
 	Preferences Preferences `json:"preferences"`
+}
+
+// NewUserForPhone 生成「手机号首次登录」时的默认资料。
+//
+// 昵称取手机号后四位，是为了让同一个测试机上注册的多个账号在界面上能区分开
+// —— 都叫「用户」的话，联调时根本看不出当前登的是哪个号。
+// 用户进 App 后可以自己改。
+func NewUserForPhone(id, phone string) User {
+	return User{
+		ID:          id,
+		Nickname:    "用户" + lastDigits(phone, 4),
+		AvatarText:  lastDigits(phone, 2),
+		Timezone:    "Asia/Shanghai",
+		Preferences: NewPreferences("normal", nil, nil),
+	}
+}
+
+// lastDigits 取字符串末尾 n 个字符（按字节切——手机号是纯 ASCII，安全）。
+// 不足 n 位时返回原串，避免短输入导致切片越界。
+func lastDigits(s string, n int) string {
+	if len(s) <= n {
+		return s
+	}
+	return s[len(s)-n:]
+}
+
+// SmsCode 是一条短信验证码记录。
+//
+// 刻意不带 json tag：它只在服务端内部流转，任何一段都不该被直接序列化给客户端
+// —— 尤其是 code 字段本身。
+type SmsCode struct {
+	ID         int64
+	Phone      string
+	Code       string
+	ExpiresAt  time.Time
+	ConsumedAt *time.Time
+	Attempts   int
+	CreatedAt  time.Time
 }
 
 type Preferences struct {

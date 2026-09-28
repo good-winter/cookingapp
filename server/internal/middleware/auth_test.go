@@ -21,11 +21,22 @@ func (f fakeTokens) UserIDByToken(_ context.Context, token string) (string, erro
 	return "", store.ErrNotFound
 }
 
+func (f fakeTokens) CreateToken(_ context.Context, token, userID string) error {
+	f.valid[token] = userID
+	return nil
+}
+
 // failTokens 用于验证「依赖故障」不等于「凭据无效」。
 type failTokens struct{}
 
 func (failTokens) UserIDByToken(context.Context, string) (string, error) {
 	return "", context.DeadlineExceeded
+}
+
+// CreateToken 同样报依赖故障：这组用例的意图是「store 出问题时中间件怎么反应」，
+// 签发侧不属于被测范围，返回同一个错误即可。
+func (failTokens) CreateToken(context.Context, string, string) error {
+	return context.DeadlineExceeded
 }
 
 func newTestRouter(tokens store.TokenStore, allowDebug bool) *gin.Engine {
